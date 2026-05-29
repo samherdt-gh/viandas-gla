@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Sabores de la GLA — Pedí online</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,41 +19,50 @@
     </div>
   </div>
 
-  <main class="cat-main">
-    <section class="cat-menu" id="catalogo-viandas">
-      <div class="cat-section-title">Nuestras viandas</div>
-      <div id="viandas-list" class="viandas-grid"></div>
+  <div class="cat-categorias" id="cat-categorias"></div>
+
+  <main class="cat-main" id="cat-main">
+    <section class="cat-menu" id="seccion-menu">
+      <div id="viandas-list"></div>
     </section>
 
-    <section class="cat-cart" id="catalogo-carrito">
-      <div class="cat-section-title" style="margin-top:8px;">Tu pedido</div>
-      <div id="cart-items" class="cart-items">
-        <div class="empty-state">Agregá viandas del menú</div>
-      </div>
-
+    <section class="cat-checkout" id="seccion-checkout" style="display:none">
+      <div class="cat-section-title">Tus datos</div>
+      <div id="checkout-resumen" class="checkout-resumen"></div>
       <div class="cart-form">
         <div class="cart-field">
           <label for="cart-cliente">Tu nombre <span class="req">*</span></label>
-          <input id="cart-cliente" type="text" placeholder="Ej: Juan" maxlength="120" required>
+          <input id="cart-cliente" type="text" placeholder="Ej: Juan" maxlength="120" required autocomplete="name">
         </div>
         <div class="cart-field">
           <label for="cart-telefono">Teléfono <span class="req">*</span></label>
-          <input id="cart-telefono" type="tel" placeholder="Ej: 11 5555-1234" maxlength="60" required>
+          <input id="cart-telefono" type="tel" placeholder="Ej: 11 5555-1234" maxlength="60" required autocomplete="tel">
         </div>
         <div class="cart-field">
           <label for="cart-direccion">Dirección de entrega <span class="req">*</span></label>
-          <input id="cart-direccion" type="text" placeholder="Ej: Av. Siempre Viva 123" maxlength="200" required>
+          <input id="cart-direccion" type="text" placeholder="Ej: Av. Siempre Viva 123" maxlength="200" required autocomplete="street-address">
         </div>
         <div class="cart-field">
           <label for="cart-notas">Notas (opcional)</label>
           <textarea id="cart-notas" placeholder="Algún comentario..." maxlength="2000"></textarea>
         </div>
-        <div class="cart-total" id="cart-total">Total: $0</div>
-        <button class="cat-btn" id="btn-enviar" onclick="enviarPedido()">Enviar pedido</button>
+        <div class="cart-total" id="checkout-total">Total: $0</div>
+        <div style="display:flex;gap:8px">
+          <button class="cat-btn cat-btn-outline" onclick="volverAlMenu()" style="flex:1">← Volver</button>
+          <button class="cat-btn" id="btn-enviar" onclick="enviarPedido()" style="flex:2">Enviar pedido</button>
+        </div>
         <div id="cart-mensaje"></div>
       </div>
     </section>
   </main>
+
+  <div class="cart-bar" id="cart-bar">
+    <div class="cart-bar-info" onclick="irACheckout()">
+      <span class="cart-bar-icon">🛒</span>
+      <span id="cart-bar-text">Agregá viandas del menú</span>
+    </div>
+    <button class="cat-btn cat-btn-sm" id="btn-continuar" onclick="irACheckout()">Continuar</button>
+  </div>
 
   <div class="cat-footer">
     <span>Sabores de la GLA © 2026</span>

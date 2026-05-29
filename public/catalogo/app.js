@@ -1,23 +1,68 @@
 let viandas = [];
 const carrito = {};
+let categoriaActiva = null;
 
 async function init() {
   try {
     viandas = await fetch('/api/viandas').then(r => r.json());
-    renderViandas();
+    renderizarCategorias();
+    renderizarMenu();
+    actualizarBarra();
   } catch {
     document.getElementById('viandas-list').innerHTML =
       '<div class="empty-state">Error al cargar el menú. Intentalo de nuevo.</div>';
   }
 }
 
-function renderViandas() {
+function renderizarCategorias() {
+  const cats = [...new Set(viandas.map(v => v.categoria).filter(Boolean))].sort();
+  const container = document.getElementById('cat-categorias');
+  let html = '<button class="cat-tab active" data-cat="">Todas</button>';
+  for (const c of cats) {
+    html += `<button class="cat-tab" data-cat="${esc(c)}">${esc(c)}</button>`;
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.cat-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      categoriaActiva = btn.dataset.cat || null;
+      renderizarMenu();
+    });
+  });
+}
+
+function renderizarMenu() {
   const container = document.getElementById('viandas-list');
-  if (!viandas.length) {
-    container.innerHTML = '<div class="empty-state">No hay viandas disponibles por ahora.</div>';
+  const filtradas = categoriaActiva
+    ? viandas.filter(v => v.categoria === categoriaActiva)
+    : viandas;
+
+  if (!filtradas.length) {
+    container.innerHTML = '<div class="empty-state">No hay viandas en esta categoría</div>';
     return;
   }
-  container.innerHTML = viandas.map(v => {
+
+  let html = '';
+  if (categoriaActiva) {
+    html += renderizarGrilla(filtradas);
+  } else {
+    const cats = [...new Set(viandas.map(v => v.categoria).filter(Boolean))].sort();
+    const sinCat = viandas.filter(v => !v.categoria);
+    for (const c of cats) {
+      const items = filtradas.filter(v => v.categoria === c);
+      html += `<div class="cat-group-title">${esc(c)}</div>`;
+      html += renderizarGrilla(items);
+    }
+    if (sinCat.length) {
+      html += renderizarGrilla(sinCat);
+    }
+  }
+  container.innerHTML = html;
+}
+
+function renderizarGrilla(items) {
+  return `<div class="viandas-grid">${items.map(v => {
     const enCarrito = carrito[v.id];
     const cant = enCarrito ? enCarrito.cantidad : 0;
     return `
@@ -39,7 +84,7 @@ function renderViandas() {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('')}</div>`;
 }
 
 function agregar(id) {
@@ -47,52 +92,68 @@ function agregar(id) {
   if (!v) return;
   if (!carrito[id]) carrito[id] = { ...v, cantidad: 0 };
   carrito[id].cantidad += 1;
-  renderViandas();
-  renderCarrito();
+  renderizarMenu();
+  actualizarBarra();
 }
 
 function cambiarCantidad(id, delta) {
   if (!carrito[id]) return;
   carrito[id].cantidad += delta;
-  if (carrito[id].cantidad <= 0) {
-    delete carrito[id];
-  }
-  renderViandas();
-  renderCarrito();
+  if (carrito[id].cantidad <= 0) delete carrito[id];
+  renderizarMenu();
+  actualizarBarra();
 }
 
-function renderCarrito() {
-  const container = document.getElementById('cart-items');
-  const totalEl = document.getElementById('cart-total');
+function actualizarBarra() {
   const ids = Object.keys(carrito);
+  const textEl = document.getElementById('cart-bar-text');
+  const btn = document.getElementById('btn-continuar');
 
   if (!ids.length) {
-    container.innerHTML = '<div class="empty-state">Agregá viandas del menú</div>';
-    totalEl.textContent = 'Total: $0';
+    textEl.textContent = 'Agregá viandas del menú';
+    btn.disabled = true;
+    btn.textContent = 'Continuar';
     return;
   }
 
+  const total = ids.reduce((s, id) => s + carrito[id].cantidad * Number(carrito[id].precio_venta || 0), 0);
+  const items = ids.reduce((s, id) => s + carrito[id].cantidad, 0);
+  textEl.textContent = `${items} ${items === 1 ? 'vianda' : 'viandas'} · $${Math.round(total)}`;
+  btn.disabled = false;
+  btn.textContent = 'Continuar';
+}
+
+function irACheckout() {
+  const ids = Object.keys(carrito);
+  if (!ids.length) return;
+
+  document.getElementById('seccion-menu').style.display = 'none';
+  document.getElementById('seccion-checkout').style.display = 'block';
+  document.getElementById('cart-bar').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Render order summary
   let total = 0;
-  container.innerHTML = ids.map(id => {
+  const html = ids.map(id => {
     const item = carrito[id];
     const subtotal = item.cantidad * Number(item.precio_venta || 0);
     total += subtotal;
-    return `
-      <div class="cart-item">
-        <span class="cart-item-name">${esc(item.nombre)}</span>
-        <div class="cart-item-right">
-          <div class="cart-item-qty">
-            <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, -1)">−</button>
-            <span>${item.cantidad}</span>
-            <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, 1)">+</button>
-          </div>
-          <span class="cart-item-price">$${Math.round(subtotal)}</span>
-        </div>
-      </div>
-    `;
+    return `<div class="checkout-item">
+      <span class="checkout-item-name">${esc(item.nombre)}</span>
+      <span class="checkout-item-qty">${item.cantidad}x</span>
+      <span class="checkout-item-price">$${Math.round(subtotal)}</span>
+    </div>`;
   }).join('');
+  document.getElementById('checkout-resumen').innerHTML = html;
+  document.getElementById('checkout-total').textContent = `Total: $${Math.round(total)}`;
+}
 
-  totalEl.textContent = `Total: $${Math.round(total)}`;
+function volverAlMenu() {
+  document.getElementById('seccion-checkout').style.display = 'none';
+  document.getElementById('seccion-menu').style.display = 'block';
+  document.getElementById('cart-bar').style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('cart-mensaje').innerHTML = '';
 }
 
 function primerNombre(nombre) {
@@ -106,6 +167,7 @@ async function enviarPedido() {
 
   if (!cliente) {
     mostrarMensaje('Decinos tu nombre para tomar el pedido', 'error');
+    document.getElementById('cart-cliente').focus();
     return;
   }
   if (!telefono) {
@@ -157,8 +219,9 @@ async function enviarPedido() {
     document.getElementById('cart-direccion').value = '';
     document.getElementById('cart-notas').value = '';
     Object.keys(carrito).forEach(k => delete carrito[k]);
-    renderViandas();
-    renderCarrito();
+    volverAlMenu();
+    renderizarMenu();
+    actualizarBarra();
     document.getElementById('modal-texto').textContent =
       `Gracias por tu compra, ${primerNombre(cliente)}. Pronto me pongo en contacto con vos para coordinar la entrega.`;
     document.getElementById('modal-exito').classList.add('open');

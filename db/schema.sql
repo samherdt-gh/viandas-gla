@@ -15,6 +15,7 @@ create table if not exists public.viandas (
   nombre text not null unique,
   descripcion text,
   imagen text,
+  categoria text,
   costo numeric(12, 2) not null default 0 check (costo >= 0),
   precio_venta numeric(12, 2) not null default 0 check (precio_venta >= 0),
   stock integer not null default 0,

@@ -12,7 +12,7 @@ const ESTADOS_PEDIDO = ['pendiente', 'en_proceso', 'listo', 'entregado', 'cancel
 const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
 
 app.use(morgan('tiny'));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 function createHttpError(message, status = 400) {
   const err = new Error(message);
@@ -209,6 +209,7 @@ api.post('/viandas', async (req, res, next) => {
       nombre,
       descripcion: cleanText(req.body?.descripcion, 1000),
       imagen: cleanText(req.body?.imagen, 500) || null,
+      categoria: cleanText(req.body?.categoria, 100) || null,
       costo: Math.max(toMoney(req.body?.costo), 0),
       precio_venta: Math.max(toMoney(req.body?.precio_venta), 0),
       stock: toInt(req.body?.stock, 0)
@@ -233,6 +234,7 @@ api.put('/viandas/:id', async (req, res, next) => {
       nombre,
       descripcion: cleanText(req.body?.descripcion, 1000),
       imagen: cleanText(req.body?.imagen, 500) || null,
+      categoria: cleanText(req.body?.categoria, 100) || null,
       costo: Math.max(toMoney(req.body?.costo), 0),
       precio_venta: Math.max(toMoney(req.body?.precio_venta), 0),
       stock: toInt(req.body?.stock, 0)
@@ -684,6 +686,18 @@ app.listen(PORT, async () => {
     } else if (!error) {
       await supabase.from('viandas').delete().eq('nombre', '__migrate__');
       console.log('✅ Columna imagen OK');
+    }
+  } catch { /* ignore */ }
+
+  // Auto-migrate: columna categoria en viandas
+  try {
+    const { error } = await supabase.from('viandas').insert({ nombre: '__migrate2__', categoria: 't' }).select('*').maybeSingle();
+    if (error?.code === '42703') {
+      console.log('⚠️  Migracion necesaria: ejecutar en Supabase SQL Editor:');
+      console.log('  ALTER TABLE public.viandas ADD COLUMN IF NOT EXISTS categoria text;');
+    } else if (!error) {
+      await supabase.from('viandas').delete().eq('nombre', '__migrate2__');
+      console.log('✅ Columna categoria OK');
     }
   } catch { /* ignore */ }
 

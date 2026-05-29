@@ -176,11 +176,15 @@ function openViandaModal(vianda = null) {
   document.getElementById('vianda-modal-title').textContent = vianda ? 'Editar vianda' : 'Nueva vianda';
   document.getElementById('vianda-nombre').value = vianda?.nombre || '';
   document.getElementById('vianda-descripcion').value = vianda?.descripcion || '';
+  document.getElementById('vianda-categoria').value = vianda?.categoria || '';
   document.getElementById('vianda-imagen').value = vianda?.imagen || '';
   document.getElementById('vianda-costo').value = vianda?.costo ?? 0;
   document.getElementById('vianda-precio').value = vianda?.precio_venta ?? 0;
   document.getElementById('vianda-stock').value = vianda?.stock ?? 0;
   actualizarPreviewImagen(vianda?.imagen);
+  // Populate category datalist from existing viandas
+  const cats = [...new Set(viandasCache.map(v => v.categoria).filter(Boolean))].sort();
+  document.getElementById('categoria-list').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
   document.getElementById('modal-vianda').classList.add('open');
 }
 
@@ -267,6 +271,7 @@ function renderViandas(viandas, aProducirMap) {
       <tr>
         <td>
           ${v.imagen ? `<img src="${escapeHtml(v.imagen)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">` : ''}
+          ${v.categoria ? `<span class="badge badge-cat">${escapeHtml(v.categoria)}</span> ` : ''}
           <strong>${escapeHtml(v.nombre)}</strong><br><small>${escapeHtml(v.descripcion || '')}</small>
         </td>
         <td>${formatMoney(v.costo)}</td>
@@ -297,6 +302,7 @@ function renderViandas(viandas, aProducirMap) {
             <button class="btn btn-danger btn-sm" onclick="eliminarVianda(${v.id})">🗑️</button>
           </span>
         </div>
+        ${v.categoria ? `<div class="row"><span class="label">Categoría</span><span class="value"><span class="badge badge-cat">${escapeHtml(v.categoria)}</span></span></div>` : ''}
         <div class="row"><span class="label">Costo</span><span class="value">${formatMoney(v.costo)}</span></div>
         <div class="row"><span class="label">Venta</span><span class="value">${formatMoney(v.precio_venta)}</span></div>
         <div class="row"><span class="label">Ganancia</span><span class="value">${formatMoney(ganancia)}</span></div>
@@ -345,6 +351,7 @@ async function guardarVianda() {
     const body = {
       nombre: document.getElementById('vianda-nombre').value.trim(),
       descripcion: document.getElementById('vianda-descripcion').value.trim(),
+      categoria: document.getElementById('vianda-categoria').value.trim(),
       imagen: document.getElementById('vianda-imagen').value.trim(),
       costo: document.getElementById('vianda-costo').value,
       precio_venta: document.getElementById('vianda-precio').value,
