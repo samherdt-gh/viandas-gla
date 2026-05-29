@@ -339,7 +339,14 @@ async function cargarPedidos() {
       <td>${formatDate(p.fecha_entrega)}</td>
       <td>${p.items_count || 0}</td>
       <td>${formatMoney(p.total_venta)}</td>
-      <td>${renderEstadoBadge(p.estado)}</td>
+      <td>${(function () {
+        if (!p.fecha_entrega) return renderEstadoBadge(p.estado);
+        const d = Math.ceil((new Date(p.fecha_entrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        if (d < 0) return '<span class="badge badge-cancelado">Vencido</span>';
+        if (d === 0) return '<span class="badge badge-pendiente">Hoy</span>';
+        if (d <= 2) return '<span class="badge badge-en_proceso">Próximo</span>';
+        return renderEstadoBadge(p.estado);
+      })()}</td>
       <td>
         <button class="btn btn-outline btn-sm" onclick="verPedido(${p.id})">👁️</button>
         <button class="btn btn-danger btn-sm" onclick="eliminarPedido(${p.id})">🗑️</button>
@@ -350,24 +357,24 @@ async function cargarPedidos() {
     </tr>
   `).join('');
 
-  function calcUrgency(fechaEntrega) {
-    if (!fechaEntrega) return '';
+  function urgencyBadge(fechaEntrega) {
+    if (!fechaEntrega) return '<span class="badge badge-cancelado" style="font-size:12px;padding:3px 8px;">Sin fecha</span>';
     const diff = Math.ceil((new Date(fechaEntrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return '<span class="badge badge-cancelado" style="margin-left:6px;">Vencido</span>';
-    if (diff === 0) return '<span class="badge badge-pendiente" style="margin-left:6px;">Hoy</span>';
-    if (diff <= 2) return '<span class="badge badge-en_proceso" style="margin-left:6px;">Próximo</span>';
-    return '';
+    if (diff < 0) return '<span class="badge badge-cancelado">Vencido</span>';
+    if (diff === 0) return '<span class="badge badge-pendiente">Hoy</span>';
+    if (diff <= 2) return '<span class="badge badge-en_proceso">Próximo</span>';
+    return '<span class="badge badge-entregado">Programado</span>';
   }
 
   cards.innerHTML = pedidos.map((p) => `
     <div class="card-list-item">
       <div class="row">
-        <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)} ${calcUrgency(p.fecha_entrega)}</span>
-        ${renderEstadoBadge(p.estado)}
+        <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
+        ${urgencyBadge(p.fecha_entrega)}
       </div>
       <div class="row">
         <span class="label">Entrega</span>
-        <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)}</span>
+        <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)} ${!p.fecha_entrega ? '<span style="color:var(--text-secondary);font-size:12px;">— sin fecha asignada</span>' : ''}</span>
       </div>
       <div class="row"><span class="label">Items</span><span class="value">${p.items_count || 0}</span></div>
       <div class="row"><span class="label">Total</span><span class="value">${formatMoney(p.total_venta)}</span></div>
