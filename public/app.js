@@ -179,7 +179,58 @@ function openViandaModal(vianda = null) {
   document.getElementById('vianda-costo').value = vianda?.costo ?? 0;
   document.getElementById('vianda-precio').value = vianda?.precio_venta ?? 0;
   document.getElementById('vianda-stock').value = vianda?.stock ?? 0;
+  actualizarPreviewImagen(vianda?.imagen);
   document.getElementById('modal-vianda').classList.add('open');
+}
+
+function actualizarPreviewImagen(url) {
+  const img = document.getElementById('vianda-img-preview');
+  if (url) {
+    img.src = url;
+    img.style.display = 'inline';
+  } else {
+    img.style.display = 'none';
+  }
+}
+
+document.getElementById('vianda-imagen-file')?.addEventListener('change', async function(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const status = document.getElementById('vianda-img-status');
+  status.textContent = 'Subiendo...';
+  try {
+    const reader = new FileReader();
+    reader.onload = async function(ev) {
+      const base64 = ev.target.result.split(',')[1];
+      const name = file.name;
+      const res = await api('/upload', {
+        method: 'POST',
+        body: { file: base64, name }
+      });
+      document.getElementById('vianda-imagen').value = res.url;
+      actualizarPreviewImagen(res.url);
+      status.textContent = 'Imagen subida ✅';
+    };
+    reader.readAsDataURL(file);
+  } catch (err) {
+    status.textContent = 'Error al subir: ' + err.message;
+  }
+});
+
+async function generarImagenIA() {
+  const nombre = document.getElementById('vianda-nombre').value.trim();
+  if (!nombre) {
+    showToast('Primero escribí el nombre de la vianda');
+    return;
+  }
+  const status = document.getElementById('vianda-img-status');
+  status.textContent = 'Generando imagen...';
+  const prompt = encodeURIComponent(`Una vianda casera de ${nombre}, fotografia culinaria profesional, iluminacion natural, plato blanco, hierbas frescas decorando, estilo gastronomico`);
+
+  const url = `https://image.pollinations.ai/prompt/${prompt}?width=512&height=512&nofeed=true`;
+  document.getElementById('vianda-imagen').value = url;
+  actualizarPreviewImagen(url);
+  status.textContent = 'Imagen generada con IA ✨';
 }
 
 function renderViandas(viandas, aProducirMap) {

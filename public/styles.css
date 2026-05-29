@@ -377,6 +377,22 @@ h2 {
   color: var(--text-secondary);
 }
 
+
+.vianda-img-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vianda-img-preview {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {

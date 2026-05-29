@@ -265,6 +265,33 @@ api.delete('/viandas/:id', async (req, res, next) => {
   }
 });
 
+api.post('/upload', async (req, res, next) => {
+  try {
+    const { file, name } = req.body;
+    if (!file || !name) throw createHttpError('Faltan file y name');
+
+    const buffer = Buffer.from(file, 'base64');
+    const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+    const { data, error } = await supabase.storage
+      .from('viandas-imagenes')
+      .upload(fileName, buffer, {
+        contentType: name.endsWith('.png') ? 'image/png' : 'image/jpeg',
+        upsert: false
+      });
+
+    if (error) throw mapDbError(error, 'No se pudo subir el archivo');
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('viandas-imagenes')
+      .getPublicUrl(fileName);
+
+    res.json({ url: publicUrl });
+  } catch (err) {
+    next(err);
+  }
+});
+
 api.get('/pedidos', async (req, res, next) => {
   try {
     const { data: pedidos, error } = await supabase.from('pedidos').select('*').order('created_at', { ascending: false });

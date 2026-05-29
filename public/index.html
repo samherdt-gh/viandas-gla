@@ -185,8 +185,17 @@
       </div>
 
       <div class="form-group">
-        <label for="vianda-imagen">URL de imagen</label>
-        <input id="vianda-imagen" placeholder="https://ejemplo.com/vianda.jpg">
+        <label>Imagen</label>
+        <div class="vianda-img-row">
+          <img id="vianda-img-preview" class="vianda-img-preview" src="" style="display:none" alt="preview">
+          <label class="btn btn-outline btn-sm" style="cursor:pointer">
+            📁 Subir archivo
+            <input type="file" id="vianda-imagen-file" accept="image/*" style="display:none">
+          </label>
+          <button class="btn btn-outline btn-sm" type="button" id="btn-generar-ia" onclick="generarImagenIA()">✨ Generar imagen IA</button>
+          <input type="hidden" id="vianda-imagen">
+        </div>
+        <div id="vianda-img-status" style="font-size:12px;color:var(--text-secondary);margin-top:4px"></div>
       </div>
 
       <div class="form-row">
