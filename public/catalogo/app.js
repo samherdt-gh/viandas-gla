@@ -17,34 +17,46 @@ function renderViandas() {
     container.innerHTML = '<div class="empty-state">No hay viandas disponibles por ahora.</div>';
     return;
   }
-  container.innerHTML = viandas.map(v => `
-    <div class="vianda-card">
-      <div class="vianda-info">
-        <div class="vianda-name">${esc(v.nombre)}</div>
-        ${v.descripcion ? `<div class="vianda-desc">${esc(v.descripcion)}</div>` : ''}
+  container.innerHTML = viandas.map(v => {
+    const enCarrito = carrito[v.id];
+    const cant = enCarrito ? enCarrito.cantidad : 0;
+    return `
+      <div class="vianda-card${cant > 0 ? ' selected' : ''}">
+        <div class="vianda-info" onclick="agregar(${v.id})">
+          <div class="vianda-name">${esc(v.nombre)}</div>
+          ${v.descripcion ? `<div class="vianda-desc">${esc(v.descripcion)}</div>` : ''}
+        </div>
+        <div class="vianda-bottom">
+          <div class="vianda-price">$${Math.round(v.precio_venta || 0)}</div>
+          ${cant > 0
+            ? `<div class="vianda-qty">
+                <button class="qty-btn" onclick="event.stopPropagation();cambiarCantidad(${v.id}, -1)">−</button>
+                <span class="qty-num">${cant}</span>
+                <button class="qty-btn" onclick="event.stopPropagation();cambiarCantidad(${v.id}, 1)">+</button>
+              </div>`
+            : `<button class="vianda-add" onclick="event.stopPropagation();agregar(${v.id})">+</button>`}
+        </div>
       </div>
-      <div class="vianda-price">$${Math.round(v.precio_venta || 0)}</div>
-      <button class="vianda-add" id="btn-${v.id}" onclick="toggleCarrito(${v.id})">
-        ${carrito[v.id] ? 'Sacar' : 'Agregar'}
-      </button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-function toggleCarrito(id) {
-  if (carrito[id]) {
-    delete carrito[id];
-  } else {
-    const v = viandas.find(x => x.id === id);
-    if (v) carrito[id] = { ...v, cantidad: 1 };
-  }
+function agregar(id) {
+  const v = viandas.find(x => x.id === id);
+  if (!v) return;
+  if (!carrito[id]) carrito[id] = { ...v, cantidad: 0 };
+  carrito[id].cantidad += 1;
   renderViandas();
   renderCarrito();
 }
 
 function cambiarCantidad(id, delta) {
   if (!carrito[id]) return;
-  carrito[id].cantidad = Math.max(1, carrito[id].cantidad + delta);
+  carrito[id].cantidad += delta;
+  if (carrito[id].cantidad <= 0) {
+    delete carrito[id];
+  }
+  renderViandas();
   renderCarrito();
 }
 
@@ -67,17 +79,23 @@ function renderCarrito() {
     return `
       <div class="cart-item">
         <span class="cart-item-name">${esc(item.nombre)}</span>
-        <div class="cart-item-qty">
-          <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, -1)">−</button>
-          <span>${item.cantidad}</span>
-          <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, 1)">+</button>
+        <div class="cart-item-right">
+          <div class="cart-item-qty">
+            <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, -1)">−</button>
+            <span>${item.cantidad}</span>
+            <button class="cart-qty-btn" onclick="cambiarCantidad(${id}, 1)">+</button>
+          </div>
+          <span class="cart-item-price">$${Math.round(subtotal)}</span>
         </div>
-        <span class="cart-item-price">$${Math.round(subtotal)}</span>
       </div>
     `;
   }).join('');
 
   totalEl.textContent = `Total: $${Math.round(total)}`;
+}
+
+function primerNombre(nombre) {
+  return (nombre || '').trim().split(/\s+/)[0] || nombre;
 }
 
 async function enviarPedido() {
@@ -108,6 +126,8 @@ async function enviarPedido() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente,
+        telefono: document.getElementById('cart-telefono').value.trim() || null,
+        direccion: document.getElementById('cart-direccion').value.trim() || null,
         notas: document.getElementById('cart-notas').value.trim() || null,
         items
       })
@@ -119,12 +139,14 @@ async function enviarPedido() {
     }
 
     document.getElementById('cart-cliente').value = '';
+    document.getElementById('cart-telefono').value = '';
+    document.getElementById('cart-direccion').value = '';
     document.getElementById('cart-notas').value = '';
     Object.keys(carrito).forEach(k => delete carrito[k]);
     renderViandas();
     renderCarrito();
     document.getElementById('modal-texto').textContent =
-      `Gracias por tu compra, ${cliente}. Pronto me pongo en contacto con vos para coordinar la entrega.`;
+      `Gracias por tu compra, ${primerNombre(cliente)}. Pronto me pongo en contacto con vos para coordinar la entrega.`;
     document.getElementById('modal-exito').classList.add('open');
   } catch (err) {
     mostrarMensaje('❌ ' + err.message, 'error');
