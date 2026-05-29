@@ -318,6 +318,8 @@ api.post('/pedidos', async (req, res, next) => {
     if (!cliente) throw createHttpError('El cliente es obligatorio');
 
     const notas = cleanText(req.body?.notas, 2000);
+    const telefono = cleanText(req.body?.telefono, 60);
+    const direccion = cleanText(req.body?.direccion, 200);
     const fechaEntrega = parseNullableDate(req.body?.fecha_entrega);
     const rawItems = Array.isArray(req.body?.items) ? req.body.items : [];
 
@@ -342,6 +344,8 @@ api.post('/pedidos', async (req, res, next) => {
       .from('pedidos')
       .insert({
         cliente,
+        telefono,
+        direccion,
         notas,
         estado: 'pendiente',
         fecha_entrega: fechaEntrega
@@ -474,6 +478,24 @@ api.delete('/pedidos/:id', async (req, res, next) => {
     res.json({ ok: true });
   } catch (err) {
     next(err);
+  }
+});
+
+api.post('/migrate', async (req, res, next) => {
+  try {
+    await supabase.rpc('exec_sql', { sql: 'ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS telefono text; ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS direccion text;' });
+    res.json({ ok: true });
+  } catch {
+    await supabase.from('pedidos').select('id').limit(0);
+    const { error: e1 } = await supabase.from('pedidos').insert({ cliente: '__migrate__', telefono: '__migrate__' }).select('*').maybeSingle();
+    if (e1 && e1.code === '42703') {
+      return res.status(500).json({ error: 'La columna telefono no existe aún. Ejecutá el SQL en el editor de Supabase: ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS telefono text; ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS direccion text;' });
+    }
+    if (!e1) {
+      await supabase.from('pedidos').delete().eq('cliente', '__migrate__');
+      return res.json({ ok: true });
+    }
+    res.json({ error: e1.message });
   }
 });
 
@@ -610,6 +632,18 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: message });
 });
 
-app.listen(PORT, () => {
-  console.log(`Viandas - Gla corriendo en http://localhost:${PORT}`);
+app.listen(PORT, async () => {
+  // Auto-migrate: intenta agregar columnas telefono y direccion
+  try {
+    const { error } = await supabase.from('pedidos').insert({ cliente: '__migrate__', telefono: 't', direccion: 'd' }).select('*').maybeSingle();
+    if (error?.code === '42703') {
+      console.log('⚠️  Migracion necesaria: ejecutar en Supabase SQL Editor:');
+      console.log('  ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS telefono text;');
+      console.log('  ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS direccion text;');
+    } else if (!error) {
+      await supabase.from('pedidos').delete().eq('cliente', '__migrate__');
+      console.log('✅ Columnas telefono y direccion OK');
+    }
+  } catch { /* ignore */ }
+  console.log(`Sabores de la GLA corriendo en http://localhost:${PORT}`);
 });
