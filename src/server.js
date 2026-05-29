@@ -67,6 +67,16 @@ function isSameDay(isoDate, dayStamp) {
   return Boolean(isoDate && String(isoDate).startsWith(dayStamp));
 }
 
+function getStartOfWeek() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = (day === 0 ? 6 : day - 1);
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString();
+}
+
 async function fetchViandasByIds(ids) {
   if (!ids.length) return [];
   const { data, error } = await supabase
@@ -532,22 +542,24 @@ api.post('/produccion', async (req, res, next) => {
 
 api.get('/stats', async (req, res, next) => {
   try {
-    const [viandasRes, pedidosRes, produccion] = await Promise.all([
-      supabase.from('viandas').select('id,stock'),
+    const [pedidosRes, produccion] = await Promise.all([
       supabase.from('pedidos').select('id,cliente,estado,total_venta,total_costo,ganancia,created_at,fecha_entrega,entregado_at'),
       buildProduccionPlan()
     ]);
 
-    if (viandasRes.error) throw mapDbError(viandasRes.error, 'No se pudieron cargar viandas');
     if (pedidosRes.error) throw mapDbError(pedidosRes.error, 'No se pudieron cargar pedidos');
 
-    const viandas = viandasRes.data || [];
     const pedidos = pedidosRes.data || [];
-    const todayStamp = new Date().toISOString().slice(0, 10);
+    const weekStart = getStartOfWeek();
 
-    const pedidosRecientes = [...pedidos]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 6);
+    const pedidosSemana = pedidos.filter((p) => p.created_at >= weekStart);
+    const pendientesSemana = pedidosSemana.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length;
+    const entregadosSemana = pedidos.filter((p) => p.estado === 'entregado' && p.entregado_at >= weekStart);
+
+    const clientesSet = new Set();
+    for (const p of pedidos) {
+      if (p.cliente) clientesSet.add(p.cliente.trim().toLowerCase());
+    }
 
     const entregasPendientes = pedidos
       .filter((p) => ESTADOS_ACTIVOS.includes(p.estado))
@@ -558,19 +570,13 @@ api.get('/stats', async (req, res, next) => {
       })
       .slice(0, 6);
 
-    const entregadosHoy = pedidos.filter((p) => p.estado === 'entregado' && isSameDay(p.entregado_at, todayStamp));
-
     res.json({
-      totalViandas: viandas.length,
-      totalStock: sumBy(viandas, (v) => Number(v.stock || 0)),
-      pedidosActivos: pedidos.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length,
-      pedidosHoy: pedidos.filter((p) => isSameDay(p.created_at, todayStamp)).length,
-      ingresosHoy: toMoney(sumBy(entregadosHoy, (p) => Number(p.total_venta || 0))),
-      gananciaHoy: toMoney(sumBy(entregadosHoy, (p) => Number(p.ganancia || 0))),
-      productosBajos: viandas.filter((v) => Number(v.stock || 0) > 0 && Number(v.stock || 0) <= 5).length,
-      sinStock: viandas.filter((v) => Number(v.stock || 0) <= 0).length,
-      aProducir: produccion.total,
-      pedidosRecientes,
+      pedidosRealizados: pedidosSemana.length,
+      pendientesSemana,
+      ingresosSemanales: toMoney(sumBy(entregadosSemana, (p) => Number(p.total_venta || 0))),
+      gananciaSemanal: toMoney(sumBy(entregadosSemana, (p) => Number(p.ganancia || 0))),
+      clientes: clientesSet.size,
+      pedidosHistoricos: pedidos.length,
       entregasPendientes
     });
   } catch (err) {

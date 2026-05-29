@@ -124,31 +124,17 @@ function renderEstadoBadge(estado) {
 }
 
 async function cargarDashboard() {
-  showLoading('stats-grid', 'entregas-pendientes', 'recientes-list');
+  showLoading('stats-grid', 'entregas-pendientes');
   const s = await api('/stats');
   const statsGrid = document.getElementById('stats-grid');
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="label">Viandas</div><div class="value">${s.totalViandas}</div></div>
-    <div class="stat-card"><div class="label">Stock total</div><div class="value">${s.totalStock}</div></div>
-    <div class="stat-card"><div class="label">Pedidos activos</div><div class="value">${s.pedidosActivos}</div></div>
-    <div class="stat-card"><div class="label">Pedidos hoy</div><div class="value">${s.pedidosHoy}</div></div>
-    <div class="stat-card"><div class="label">Ingresos hoy</div><div class="value">${formatMoney(s.ingresosHoy)}</div></div>
-    <div class="stat-card"><div class="label">Ganancia hoy</div><div class="value">${formatMoney(s.gananciaHoy)}</div></div>
-    <div class="stat-card"><div class="label">Stock bajo</div><div class="value">${s.productosBajos}</div></div>
-    <div class="stat-card"><div class="label">A producir</div><div class="value">${s.aProducir}</div></div>
+    <div class="stat-card"><div class="label">Pedidos realizados (semana)</div><div class="value">${s.pedidosRealizados}</div></div>
+    <div class="stat-card"><div class="label">Pendientes de entrega</div><div class="value">${s.pendientesSemana}</div></div>
+    <div class="stat-card"><div class="label">Ingresos (semana)</div><div class="value">${formatMoney(s.ingresosSemanales)}</div></div>
+    <div class="stat-card"><div class="label">Ganancia (semana)</div><div class="value">${formatMoney(s.gananciaSemanal)}</div></div>
+    <div class="stat-card"><div class="label">Clientes</div><div class="value">${s.clientes}</div></div>
+    <div class="stat-card"><div class="label">Pedidos históricos</div><div class="value">${s.pedidosHistoricos}</div></div>
   `;
-
-  const alerta = document.getElementById('alerta-produccion');
-  if (s.aProducir > 0) {
-    alerta.innerHTML = `
-      <div class="alert alert-warning">
-        ⚠️ Hay <strong>${s.aProducir}</strong> viandas por producir.
-        <a href="#" onclick="navegar('produccion');return false;">Ver plan</a>
-      </div>
-    `;
-  } else {
-    alerta.innerHTML = '<div class="alert alert-success">✅ No hay producción pendiente.</div>';
-  }
 
   const pendientes = document.getElementById('entregas-pendientes');
   if (!s.entregasPendientes?.length) {

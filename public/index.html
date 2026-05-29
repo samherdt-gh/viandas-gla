@@ -28,9 +28,18 @@
 
   <main class="main">
     <section class="page active" id="page-dashboard">
-      <h2>Dashboard</h2>
+      <div class="dash-header">
+        <div class="dash-logo">
+          <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="48" stroke="var(--accent)" stroke-width="4"/>
+            <path d="M30 50 Q50 20 70 50 Q50 80 30 50Z" fill="var(--accent)" opacity=".3"/>
+            <circle cx="50" cy="50" r="4" fill="var(--accent)"/>
+            <text x="50" y="62" font-size="8" font-weight="700" fill="var(--accent)" text-anchor="middle" font-family="sans-serif">S</text>
+          </svg>
+          <span>Sabores de la Gla</span>
+        </div>
+      </div>
       <div class="stats-grid" id="stats-grid"></div>
-      <div id="alerta-produccion" class="mb-12"></div>
 
       <div class="card">
         <div class="card-title">📅 Próximas entregas</div>
