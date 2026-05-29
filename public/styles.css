@@ -124,13 +124,11 @@ h2 {
   margin-bottom: 16px;
   padding-top: 4px;
 }
-.dash-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--accent);
+.logo-img {
+  max-width: 100%;
+  height: auto;
+  max-height: 80px;
+  object-fit: contain;
 }
 
 .stat-card .label {
@@ -650,12 +648,15 @@ h2 {
   }
 
   .sidebar-brand {
-    font-size: 16px;
-    padding: 20px;
+    padding: 16px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 4px;
-    color: var(--accent);
-    font-weight: 700;
+  }
+  .sidebar-logo {
+    max-width: 100%;
+    height: auto;
+    max-height: 50px;
+    object-fit: contain;
   }
 
   .sidebar nav a {
