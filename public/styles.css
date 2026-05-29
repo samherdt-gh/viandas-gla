@@ -123,15 +123,17 @@ h2 {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 12px;
+  text-align: center;
 }
 
 .dash-header {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 12px;
   margin-bottom: 16px;
   padding-top: 4px;
+  max-width: 600px;
+  margin-inline: auto;
 }
 .dash-logo-img {
   width: 48px;
