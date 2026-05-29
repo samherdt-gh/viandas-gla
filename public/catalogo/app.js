@@ -118,19 +118,24 @@ async function enviarPedido() {
       throw new Error(err.error || 'Error al enviar');
     }
 
-    mostrarMensaje(`✅ Pedido recibido, ${cliente}! Pasá a retirar pronto.`, 'exito');
     document.getElementById('cart-cliente').value = '';
     document.getElementById('cart-notas').value = '';
     Object.keys(carrito).forEach(k => delete carrito[k]);
     renderViandas();
     renderCarrito();
-    document.getElementById('cat-cart').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('modal-texto').textContent =
+      `Gracias por tu compra, ${cliente}. Pronto me pongo en contacto con vos para coordinar la entrega.`;
+    document.getElementById('modal-exito').classList.add('open');
   } catch (err) {
     mostrarMensaje('❌ ' + err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Enviar pedido';
   }
+}
+
+function cerrarModal() {
+  document.getElementById('modal-exito').classList.remove('open');
 }
 
 function mostrarMensaje(texto, tipo) {
