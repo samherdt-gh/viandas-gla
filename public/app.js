@@ -3,6 +3,7 @@ const ESTADOS = ['pendiente', 'en_proceso', 'listo', 'entregado', 'cancelado'];
 const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
 
 let pedidoItems = [];
+let pedidoEnEdicion = null;
 let viandasCache = [];
 let produccionCache = [];
 let stockPlanItems = [];
@@ -463,6 +464,7 @@ async function cargarPedidos() {
 
 function showPedidoDetail(p) {
   document.getElementById('pedido-detail-title').textContent = `Pedido #${p.id} · ${escapeHtml(p.cliente)}`;
+  pedidoEnEdicion = p;
 
   const itemsHtml = (p.items || []).map((item) => `
     <div class="detail-item">
@@ -480,12 +482,27 @@ function showPedidoDetail(p) {
     else if (diff <= 2) urgencyBadge = '<span class="badge badge-en_proceso" style="margin-left:6px;">Próximo</span>';
   }
 
+  const telefonoHtml = p.telefono ? escapeHtml(p.telefono) : '<span class="text-muted">—</span>';
+  const direccionHtml = p.direccion ? escapeHtml(p.direccion) : '<span class="text-muted">—</span>';
+
   document.getElementById('pedido-detail-content').innerHTML = `
     <div class="detail-section">
       <div class="detail-section-title">Información</div>
       <div class="detail-row">
         <span class="detail-label">Estado</span>
         <span class="detail-value">${renderEstadoBadge(p.estado)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Cliente</span>
+        <span class="detail-value">${escapeHtml(p.cliente)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Teléfono</span>
+        <span class="detail-value">${telefonoHtml}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Dirección</span>
+        <span class="detail-value">${direccionHtml}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Entrega</span>
@@ -516,9 +533,64 @@ function showPedidoDetail(p) {
       </div>
     </div>
     ${p.notas ? `<div class="detail-section"><div class="detail-section-title">Notas</div><div class="detail-notes">${escapeHtml(p.notas)}</div></div>` : ''}
+    <div class="detail-section" id="pedido-edit-section" style="display:none">
+      <div class="detail-section-title">Editar pedido</div>
+      <div class="form-group">
+        <label>Cliente</label>
+        <input id="edit-cliente" value="${escapeHtml(p.cliente)}">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input id="edit-telefono" value="${escapeHtml(p.telefono || '')}">
+      </div>
+      <div class="form-group">
+        <label>Dirección</label>
+        <input id="edit-direccion" value="${escapeHtml(p.direccion || '')}">
+      </div>
+      <div class="form-group">
+        <label>Fecha de entrega</label>
+        <input id="edit-fecha" type="date" value="${p.fecha_entrega ? p.fecha_entrega.split('T')[0] : ''}">
+      </div>
+      <div class="form-group">
+        <label>Notas</label>
+        <textarea id="edit-notas">${escapeHtml(p.notas || '')}</textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="cancelarEdicionPedido()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEdicionPedido(${p.id})">Guardar</button>
+      </div>
+    </div>
   `;
 
   document.getElementById('modal-pedido-detail').classList.add('open');
+}
+
+function editarPedido() {
+  document.getElementById('pedido-edit-section').style.display = 'block';
+  document.getElementById('pedido-edit-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function cancelarEdicionPedido() {
+  document.getElementById('pedido-edit-section').style.display = 'none';
+}
+
+async function guardarEdicionPedido(id) {
+  try {
+    const body = {
+      cliente: document.getElementById('edit-cliente').value.trim(),
+      telefono: document.getElementById('edit-telefono').value.trim(),
+      direccion: document.getElementById('edit-direccion').value.trim(),
+      fecha_entrega: document.getElementById('edit-fecha').value || null,
+      notas: document.getElementById('edit-notas').value.trim()
+    };
+    if (!body.cliente) return showToast('El cliente es obligatorio');
+    await api(`/pedidos/${id}`, { method: 'PUT', body });
+    showToast('Pedido actualizado', 'success');
+    closeModal('modal-pedido-detail');
+    await Promise.all([cargarPedidos(), cargarDashboard()]);
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 async function verPedido(id) {

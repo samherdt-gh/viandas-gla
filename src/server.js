@@ -433,6 +433,30 @@ api.post('/pedidos', async (req, res, next) => {
   }
 });
 
+api.put('/pedidos/:id', async (req, res, next) => {
+  try {
+    const id = parseId(req.params.id, 'pedido_id');
+    const { data: existing, error: fetchErr } = await supabase.from('pedidos').select('*').eq('id', id).maybeSingle();
+    if (fetchErr) throw mapDbError(fetchErr, 'No se pudo consultar pedido');
+    if (!existing) throw createHttpError('Pedido no encontrado', 404);
+
+    const updates = {};
+    if (req.body.cliente !== undefined) updates.cliente = cleanText(req.body.cliente, 120);
+    if (req.body.telefono !== undefined) updates.telefono = cleanText(req.body.telefono, 60) || null;
+    if (req.body.direccion !== undefined) updates.direccion = cleanText(req.body.direccion, 200) || null;
+    if (req.body.notas !== undefined) updates.notas = cleanText(req.body.notas, 2000) || null;
+    if (req.body.fecha_entrega !== undefined) updates.fecha_entrega = parseNullableDate(req.body.fecha_entrega);
+    if (!updates.cliente) throw createHttpError('El cliente no puede estar vacío');
+
+    const { data, error } = await supabase.from('pedidos').update(updates).eq('id', id).select('*').single();
+    if (error) throw mapDbError(error, 'No se pudo actualizar pedido');
+
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 api.put('/pedidos/:id/estado', async (req, res, next) => {
   try {
     const id = parseId(req.params.id, 'pedido_id');
