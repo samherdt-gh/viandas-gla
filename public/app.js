@@ -4,6 +4,7 @@ const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
 
 let pedidoItems = [];
 let viandasCache = [];
+let produccionCache = [];
 let toastTimer = null;
 
 function escapeHtml(value) {
@@ -223,15 +224,7 @@ function openViandaModal(vianda = null) {
   document.getElementById('modal-vianda').classList.add('open');
 }
 
-async function cargarViandas() {
-  showLoading('viandas-table-body', 'viandas-card-list');
-  const [viandas, produccion] = await Promise.all([api('/viandas'), api('/produccion')]);
-  viandasCache = viandas;
-  const aProducirMap = {};
-  for (const row of produccion.items || []) {
-    aProducirMap[row.id] = row.a_producir;
-  }
-
+function renderViandas(viandas, aProducirMap) {
   const tbody = document.getElementById('viandas-table-body');
   const cards = document.getElementById('viandas-card-list');
 
@@ -282,6 +275,31 @@ async function cargarViandas() {
   }).join('');
 }
 
+function filtrarViandas() {
+  const term = (document.getElementById('viandas-search').value || '').toLowerCase().trim();
+  const filtradas = !term
+    ? viandasCache
+    : viandasCache.filter((v) => v.nombre.toLowerCase().includes(term));
+  const aProducirMap = {};
+  for (const row of produccionCache) {
+    aProducirMap[row.id] = row.a_producir;
+  }
+  renderViandas(filtradas, aProducirMap);
+}
+
+async function cargarViandas() {
+  showLoading('viandas-table-body', 'viandas-card-list');
+  const [viandas, produccion] = await Promise.all([api('/viandas'), api('/produccion')]);
+  viandasCache = viandas;
+  produccionCache = produccion.items || [];
+  document.getElementById('viandas-search').value = '';
+  const aProducirMap = {};
+  for (const row of produccionCache) {
+    aProducirMap[row.id] = row.a_producir;
+  }
+  renderViandas(viandas, aProducirMap);
+}
+
 async function editarVianda(id) {
   const viandas = await getViandas(true);
   const vianda = viandas.find((v) => Number(v.id) === Number(id));
@@ -313,7 +331,7 @@ async function guardarVianda() {
     }
 
     closeModal('modal-vianda');
-    await Promise.all([cargarViandas(), cargarDashboard(), cargarProduccion()]);
+    await Promise.all([cargarViandas(), cargarDashboard(), cargarProduccion(), cargarMovimientos()]);
   } catch (err) {
     showToast(err.message);
   }
@@ -324,7 +342,7 @@ async function eliminarVianda(id) {
     try {
       await api(`/viandas/${id}`, { method: 'DELETE' });
       showToast('Vianda eliminada', 'success');
-      await Promise.all([cargarViandas(), cargarDashboard(), cargarProduccion()]);
+      await Promise.all([cargarViandas(), cargarDashboard(), cargarProduccion(), cargarMovimientos()]);
     } catch (err) {
       showToast(err.message);
     }
