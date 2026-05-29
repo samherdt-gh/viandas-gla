@@ -208,6 +208,7 @@ api.post('/viandas', async (req, res, next) => {
     const payload = {
       nombre,
       descripcion: cleanText(req.body?.descripcion, 1000),
+      imagen: cleanText(req.body?.imagen, 500) || null,
       costo: Math.max(toMoney(req.body?.costo), 0),
       precio_venta: Math.max(toMoney(req.body?.precio_venta), 0),
       stock: toInt(req.body?.stock, 0)
@@ -231,6 +232,7 @@ api.put('/viandas/:id', async (req, res, next) => {
     const payload = {
       nombre,
       descripcion: cleanText(req.body?.descripcion, 1000),
+      imagen: cleanText(req.body?.imagen, 500) || null,
       costo: Math.max(toMoney(req.body?.costo), 0),
       precio_venta: Math.max(toMoney(req.body?.precio_venta), 0),
       stock: toInt(req.body?.stock, 0)
@@ -633,7 +635,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, async () => {
-  // Auto-migrate: intenta agregar columnas telefono y direccion
+  // Auto-migrate: columnas telefono y direccion
   try {
     const { error } = await supabase.from('pedidos').insert({ cliente: '__migrate__', telefono: 't', direccion: 'd' }).select('*').maybeSingle();
     if (error?.code === '42703') {
@@ -645,5 +647,18 @@ app.listen(PORT, async () => {
       console.log('✅ Columnas telefono y direccion OK');
     }
   } catch { /* ignore */ }
+
+  // Auto-migrate: columna imagen en viandas
+  try {
+    const { error } = await supabase.from('viandas').insert({ nombre: '__migrate__', imagen: 't' }).select('*').maybeSingle();
+    if (error?.code === '42703') {
+      console.log('⚠️  Migracion necesaria: ejecutar en Supabase SQL Editor:');
+      console.log('  ALTER TABLE public.viandas ADD COLUMN IF NOT EXISTS imagen text;');
+    } else if (!error) {
+      await supabase.from('viandas').delete().eq('nombre', '__migrate__');
+      console.log('✅ Columna imagen OK');
+    }
+  } catch { /* ignore */ }
+
   console.log(`Sabores de la GLA corriendo en http://localhost:${PORT}`);
 });

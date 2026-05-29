@@ -175,6 +175,7 @@ function openViandaModal(vianda = null) {
   document.getElementById('vianda-modal-title').textContent = vianda ? 'Editar vianda' : 'Nueva vianda';
   document.getElementById('vianda-nombre').value = vianda?.nombre || '';
   document.getElementById('vianda-descripcion').value = vianda?.descripcion || '';
+  document.getElementById('vianda-imagen').value = vianda?.imagen || '';
   document.getElementById('vianda-costo').value = vianda?.costo ?? 0;
   document.getElementById('vianda-precio').value = vianda?.precio_venta ?? 0;
   document.getElementById('vianda-stock').value = vianda?.stock ?? 0;
@@ -196,7 +197,10 @@ function renderViandas(viandas, aProducirMap) {
     const aProducir = aProducirMap[v.id] || 0;
     return `
       <tr>
-        <td><strong>${escapeHtml(v.nombre)}</strong><br><small>${escapeHtml(v.descripcion || '')}</small></td>
+        <td>
+          ${v.imagen ? `<img src="${escapeHtml(v.imagen)}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">` : ''}
+          <strong>${escapeHtml(v.nombre)}</strong><br><small>${escapeHtml(v.descripcion || '')}</small>
+        </td>
         <td>${formatMoney(v.costo)}</td>
         <td>${formatMoney(v.precio_venta)}</td>
         <td style="color:${ganancia >= 0 ? 'var(--success)' : 'var(--danger)'}">${formatMoney(ganancia)}</td>
@@ -216,7 +220,10 @@ function renderViandas(viandas, aProducirMap) {
     return `
       <div class="card-list-item">
         <div class="row">
-          <span><strong>${escapeHtml(v.nombre)}</strong></span>
+          <span>
+            ${v.imagen ? `<img src="${escapeHtml(v.imagen)}" alt="" style="width:28px;height:28px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;">` : ''}
+            <strong>${escapeHtml(v.nombre)}</strong>
+          </span>
           <span class="actions">
             <button class="btn btn-outline btn-sm" onclick="editarVianda(${v.id})">✏️</button>
             <button class="btn btn-danger btn-sm" onclick="eliminarVianda(${v.id})">🗑️</button>
@@ -270,6 +277,7 @@ async function guardarVianda() {
     const body = {
       nombre: document.getElementById('vianda-nombre').value.trim(),
       descripcion: document.getElementById('vianda-descripcion').value.trim(),
+      imagen: document.getElementById('vianda-imagen').value.trim(),
       costo: document.getElementById('vianda-costo').value,
       precio_venta: document.getElementById('vianda-precio').value,
       stock: document.getElementById('vianda-stock').value

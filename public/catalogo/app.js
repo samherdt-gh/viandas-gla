@@ -22,6 +22,7 @@ function renderViandas() {
     const cant = enCarrito ? enCarrito.cantidad : 0;
     return `
       <div class="vianda-card${cant > 0 ? ' selected' : ''}">
+        ${v.imagen ? `<div class="vianda-img" onclick="agregar(${v.id})"><img src="${esc(v.imagen)}" alt="${esc(v.nombre)}" loading="lazy"></div>` : ''}
         <div class="vianda-info" onclick="agregar(${v.id})">
           <div class="vianda-name">${esc(v.nombre)}</div>
           ${v.descripcion ? `<div class="vianda-desc">${esc(v.descripcion)}</div>` : ''}
@@ -100,8 +101,21 @@ function primerNombre(nombre) {
 
 async function enviarPedido() {
   const cliente = document.getElementById('cart-cliente').value.trim();
+  const telefono = document.getElementById('cart-telefono').value.trim();
+  const direccion = document.getElementById('cart-direccion').value.trim();
+
   if (!cliente) {
     mostrarMensaje('Decinos tu nombre para tomar el pedido', 'error');
+    return;
+  }
+  if (!telefono) {
+    mostrarMensaje('Dejanos tu teléfono para coordinar la entrega', 'error');
+    document.getElementById('cart-telefono').focus();
+    return;
+  }
+  if (!direccion) {
+    mostrarMensaje('Dejanos tu dirección para la entrega', 'error');
+    document.getElementById('cart-direccion').focus();
     return;
   }
 
@@ -126,8 +140,8 @@ async function enviarPedido() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente,
-        telefono: document.getElementById('cart-telefono').value.trim() || null,
-        direccion: document.getElementById('cart-direccion').value.trim() || null,
+        telefono,
+        direccion,
         notas: document.getElementById('cart-notas').value.trim() || null,
         items
       })
