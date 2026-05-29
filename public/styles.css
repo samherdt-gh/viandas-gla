@@ -649,11 +649,13 @@ h2 {
     bottom: 0;
   }
 
-  .sidebar h1 {
-    font-size: 18px;
+  .sidebar-brand {
+    font-size: 16px;
     padding: 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 4px;
+    color: var(--accent);
+    font-weight: 700;
   }
 
   .sidebar nav a {
