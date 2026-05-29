@@ -5,6 +5,7 @@ const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
 let pedidoItems = [];
 let viandasCache = [];
 let produccionCache = [];
+let stockPlanItems = [];
 let toastTimer = null;
 
 function escapeHtml(value) {
@@ -149,8 +150,6 @@ async function cargarDashboard() {
     alerta.innerHTML = '<div class="alert alert-success">✅ No hay producción pendiente.</div>';
   }
 
-  const todayStamp = new Date().toISOString().slice(0, 10);
-
   const pendientes = document.getElementById('entregas-pendientes');
   if (!s.entregasPendientes?.length) {
     pendientes.innerHTML = '<div class="empty-state">No hay entregas pendientes.</div>';
@@ -183,34 +182,6 @@ async function cargarDashboard() {
     }).join('');
   }
 
-  const hoy = s.entregasPendientes.filter((p) => {
-    if (!p.fecha_entrega) return false;
-    return p.fecha_entrega.startsWith(todayStamp);
-  });
-
-  const recientes = document.getElementById('recientes-list');
-  if (hoy.length > 0) {
-    recientes.innerHTML = `
-      <div class="card-title" style="margin-bottom:8px;">📅 Entregas de hoy</div>
-      ${hoy.map((p) => `
-        <div class="card-list-item" style="background:#fffbeb;border:1px solid #f59e0b;">
-          <div class="row">
-            <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
-            ${renderEstadoBadge(p.estado)}
-          </div>
-          <div class="row">
-            <span class="label">Total</span>
-            <span class="value">${formatMoney(p.total_venta)}</span>
-          </div>
-        </div>
-      `).join('')}
-      <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);text-align:center;">
-        <a href="#" onclick="navegar('pedidos');return false;">Ver todos los pedidos →</a>
-      </div>
-    `;
-  } else {
-    recientes.innerHTML = '<div class="empty-state">✅ No hay entregas programadas para hoy.</div>';
-  }
 }
 
 function openViandaModal(vianda = null) {
@@ -600,71 +571,16 @@ async function cargarMovimientos() {
     api('/produccion')
   ]);
 
+  stockPlanItems = plan.items || [];
+  const searchInput = document.getElementById('stock-search');
+  if (searchInput) searchInput.value = '';
+
   const resumen = document.getElementById('stock-resumen-content');
 
-  if (!plan.items.length) {
+  if (!stockPlanItems.length) {
     resumen.innerHTML = '<div class="empty-state">No hay viandas registradas.</div>';
   } else {
-    const totalFaltante = plan.items.reduce((s, i) => s + i.a_producir, 0);
-    resumen.innerHTML = `
-      <div class="data-table card" style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Vianda</th>
-              <th style="text-align:center">Stock</th>
-              <th style="text-align:center">Comprometido</th>
-              <th style="text-align:center">Faltante</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${plan.items.map((item) => {
-              const stock = Number(item.stock);
-              const pendientes = Number(item.pendientes);
-              const aProducir = Number(item.a_producir);
-              return `
-                <tr>
-                  <td><strong>${escapeHtml(item.nombre)}</strong></td>
-                  <td style="text-align:center;font-weight:700;color:${stock <= 0 ? 'var(--danger)' : stock <= 5 ? 'var(--warning)' : 'var(--text)'}">${stock}</td>
-                  <td style="text-align:center">${pendientes}</td>
-                  <td style="text-align:center;font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card-list" id="stock-resumen-cards">
-        ${plan.items.map((item) => {
-          const stock = Number(item.stock);
-          const pendientes = Number(item.pendientes);
-          const aProducir = Number(item.a_producir);
-          return `
-            <div class="card-list-item" style="${aProducir > 0 ? 'background:#fff7ed;' : ''}">
-              <div class="row">
-                <span><strong>${escapeHtml(item.nombre)}</strong></span>
-                ${aProducir > 0 ? '<span class="badge badge-pendiente">Faltante</span>' : '<span class="badge badge-entregado">OK</span>'}
-              </div>
-              <div class="row"><span class="label">Stock</span><span class="value" style="font-weight:700;color:${stock <= 0 ? 'var(--danger)' : 'var(--text)'}">${stock}</span></div>
-              <div class="row"><span class="label">Comprometido</span><span class="value">${pendientes}</span></div>
-              <div class="row"><span class="label">Faltante</span><span class="value" style="font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</span></div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-
-      ${totalFaltante > 0 ? `
-        <div class="alert alert-warning" style="margin:12px 0;">
-          ⚠️ Hay <strong>${totalFaltante}</strong> viandas faltantes en total.
-          <a href="#" onclick="navegar('produccion');return false;">Ver producción</a>
-        </div>
-      ` : `
-        <div class="alert alert-success" style="margin:12px 0;">
-          ✅ Todo cubierto con stock actual.
-        </div>
-      `}
-    `;
+    renderStockResumen(stockPlanItems);
   }
 
   const tbody = document.getElementById('movimientos-table-body');
@@ -703,6 +619,80 @@ async function cargarMovimientos() {
       <div class="row"><span class="label">Motivo</span><span class="value">${escapeHtml(m.motivo || '')}</span></div>
     </div>
   `).join('');
+}
+
+function renderStockResumen(items) {
+  const resumen = document.getElementById('stock-resumen-content');
+  if (!items.length) {
+    resumen.innerHTML = '<div class="empty-state">No hay viandas registradas.</div>';
+    return;
+  }
+  const totalFaltante = items.reduce((s, i) => s + i.a_producir, 0);
+  resumen.innerHTML = `
+    <div class="data-table card" style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Vianda</th>
+            <th style="text-align:center">Stock</th>
+            <th style="text-align:center">Comprometido</th>
+            <th style="text-align:center">Faltante</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((item) => {
+            const stock = Number(item.stock);
+            const pendientes = Number(item.pendientes);
+            const aProducir = Number(item.a_producir);
+            return `
+              <tr>
+                <td><strong>${escapeHtml(item.nombre)}</strong></td>
+                <td style="text-align:center;font-weight:700;color:${stock <= 0 ? 'var(--danger)' : stock <= 5 ? 'var(--warning)' : 'var(--text)'}">${stock}</td>
+                <td style="text-align:center">${pendientes}</td>
+                <td style="text-align:center;font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-list" id="stock-resumen-cards">
+      ${items.map((item) => {
+        const stock = Number(item.stock);
+        const pendientes = Number(item.pendientes);
+        const aProducir = Number(item.a_producir);
+        return `
+          <div class="card-list-item" style="${aProducir > 0 ? 'background:#fff7ed;' : ''}">
+            <div class="row">
+              <span><strong>${escapeHtml(item.nombre)}</strong></span>
+              ${aProducir > 0 ? '<span class="badge badge-pendiente">Faltante</span>' : '<span class="badge badge-entregado">OK</span>'}
+            </div>
+            <div class="row"><span class="label">Stock</span><span class="value" style="font-weight:700;color:${stock <= 0 ? 'var(--danger)' : 'var(--text)'}">${stock}</span></div>
+            <div class="row"><span class="label">Comprometido</span><span class="value">${pendientes}</span></div>
+            <div class="row"><span class="label">Faltante</span><span class="value" style="font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</span></div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    ${totalFaltante > 0 ? `
+      <div class="alert alert-warning" style="margin:12px 0;">
+        ⚠️ Hay <strong>${totalFaltante}</strong> viandas faltantes en total.
+        <a href="#" onclick="navegar('produccion');return false;">Ver producción</a>
+      </div>
+    ` : `
+      <div class="alert alert-success" style="margin:12px 0;">
+        ✅ Todo cubierto con stock actual.
+      </div>
+    `}
+  `;
+}
+
+function filtrarStock() {
+  const term = (document.getElementById('stock-search').value || '').toLowerCase().trim();
+  const filtradas = !term ? stockPlanItems : stockPlanItems.filter((v) => v.nombre.toLowerCase().includes(term));
+  renderStockResumen(filtradas);
 }
 
 async function cargarProduccion() {
