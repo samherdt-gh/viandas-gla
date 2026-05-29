@@ -121,14 +121,20 @@ h2 {
 .dash-header {
   display: flex;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
   padding-top: 4px;
 }
-.logo-img {
-  max-width: 100%;
-  height: auto;
-  max-height: 80px;
+.dash-logo-img {
+  width: 48px;
+  height: 48px;
   object-fit: contain;
+  flex-shrink: 0;
+}
+.dash-brand {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .stat-card .label {
@@ -648,15 +654,23 @@ h2 {
   }
 
   .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 16px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 4px;
   }
   .sidebar-logo {
-    max-width: 100%;
-    height: auto;
-    max-height: 50px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
+    flex-shrink: 0;
+  }
+  .sidebar-brand-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
   }
 
   .sidebar nav a {
