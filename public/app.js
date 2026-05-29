@@ -223,9 +223,13 @@ async function generarImagenIA() {
     showToast('Primero escribí el nombre de la vianda');
     return;
   }
+  const desc = document.getElementById('vianda-descripcion').value.trim();
   const status = document.getElementById('vianda-img-status');
   status.textContent = 'Generando imagen...';
-  const prompt = encodeURIComponent(`Una vianda casera de ${nombre}, fotografia culinaria profesional, iluminacion natural, plato blanco, hierbas frescas decorando, estilo gastronomico`);
+  const partes = [`Una vianda casera de ${nombre}`];
+  if (desc) partes.push(`, ${desc}`);
+  partes.push(`, fotografia culinaria profesional, iluminacion natural, plato blanco, hierbas frescas decorando, estilo gastronomico`);
+  const prompt = encodeURIComponent(partes.join(''));
 
   const url = `https://image.pollinations.ai/prompt/${prompt}?width=512&height=512&nofeed=true`;
   document.getElementById('vianda-imagen').value = url;
