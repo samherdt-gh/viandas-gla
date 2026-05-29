@@ -550,7 +550,11 @@ async function guardarPedido() {
 
     showToast('Pedido creado', 'success');
     closeModal('modal-pedido');
-    await Promise.all([cargarPedidos(), cargarDashboard(), cargarProduccion()]);
+    try {
+      await Promise.all([cargarPedidos(), cargarDashboard(), cargarProduccion()]);
+    } catch {
+      // recarga parcial no crítica
+    }
   } catch (err) {
     showToast(err.message);
   }
