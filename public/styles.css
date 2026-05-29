@@ -5,19 +5,20 @@
 }
 
 :root {
-  --bg: #f4f6fa;
-  --sidebar: #141823;
+  --bg: #f5efe6;
+  --sidebar: #2a3a1e;
   --card: #ffffff;
-  --border: #e5e7eb;
-  --text: #111827;
-  --text-secondary: #6b7280;
-  --primary: #4f6ef7;
-  --primary-hover: #3d58d6;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
+  --border: #ded9c8;
+  --text: #2a3a1e;
+  --text-secondary: #7a8a6a;
+  --primary: #5a7a4a;
+  --primary-hover: #4a6a3a;
+  --accent: #5a7a4a;
+  --success: #7ab87a;
+  --warning: #d4a854;
+  --danger: #c86a6a;
   --radius: 12px;
-  --shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow: 0 1px 4px rgba(42, 58, 30, 0.08);
   --nav-height: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -326,15 +327,15 @@ h2 {
 }
 
 .alert-warning {
-  background: #fffbeb;
-  border: 1px solid #f59e0b;
-  color: #92400e;
+  background: #fcf6e8;
+  border: 1px solid #d4a854;
+  color: #7a5a1e;
 }
 
 .alert-success {
-  background: #ecfdf5;
-  border: 1px solid #22c55e;
-  color: #166534;
+  background: #eef5ea;
+  border: 1px solid #7ab87a;
+  color: #3a6a3a;
 }
 
 .modal-overlay {
@@ -384,6 +385,14 @@ h2 {
   padding: 12px 14px;
   font-size: 16px;
   font-family: inherit;
+  background: var(--card);
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(90, 122, 74, 0.15);
+  outline: none;
 }
 
 .form-group textarea {
@@ -435,6 +444,11 @@ h2 {
   padding: 8px 10px;
   font-size: 13px;
   width: 100%;
+  background: var(--card);
+}
+.estado-select:focus {
+  border-color: var(--primary);
+  outline: none;
 }
 
 .toast {
@@ -452,11 +466,11 @@ h2 {
 }
 
 .toast.error {
-  background: #b91c1c;
+  background: #b86a5a;
 }
 
 .toast.success {
-  background: #15803d;
+  background: #5a9a5a;
 }
 
 /* Skeleton / Loading */
@@ -606,6 +620,10 @@ h2 {
   padding: 0 12px;
   margin-bottom: 12px;
 }
+.search-bar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(90, 122, 74, 0.15);
+}
 
 .search-icon {
   font-size: 16px;
@@ -620,6 +638,9 @@ h2 {
   padding: 12px 0;
   font-size: 16px;
   font-family: inherit;
+}
+.search-bar input:focus {
+  outline: none;
 }
 
 @media (min-width: 768px) {
