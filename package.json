@@ -1,0 +1,21 @@
+{
+  "name": "viandas-gla",
+  "version": "1.0.0",
+  "description": "Web app simple para gestionar viandas con persistencia en Supabase",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

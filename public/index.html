@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viandas - Gla</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="sidebar">
+    <h1>🥗 Viandas - Gla</h1>
+    <nav>
+      <a href="#" data-page="dashboard" class="active"><span>📊</span><span>Dashboard</span></a>
+      <a href="#" data-page="viandas"><span>🥘</span><span>Viandas</span></a>
+      <a href="#" data-page="pedidos"><span>📋</span><span>Pedidos</span></a>
+      <a href="#" data-page="produccion"><span>🏭</span><span>Producción</span></a>
+      <a href="#" data-page="stock"><span>📦</span><span>Stock</span></a>
+    </nav>
+  </div>
+
+  <div class="mobile-nav">
+    <a href="#" data-page="dashboard" class="active"><span class="nav-icon">📊</span>Inicio</a>
+    <a href="#" data-page="viandas"><span class="nav-icon">🥘</span>Viandas</a>
+    <a href="#" data-page="pedidos"><span class="nav-icon">📋</span>Pedidos</a>
+    <a href="#" data-page="produccion"><span class="nav-icon">🏭</span>Producir</a>
+    <a href="#" data-page="stock"><span class="nav-icon">📦</span>Stock</a>
+  </div>
+
+  <main class="main">
+    <section class="page active" id="page-dashboard">
+      <h2>Dashboard</h2>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div id="alerta-produccion" class="mb-12"></div>
+
+      <div class="card">
+        <div class="card-title">Entregas pendientes</div>
+        <div id="entregas-pendientes"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Pedidos recientes</div>
+        <div id="recientes-list"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-viandas">
+      <div class="toolbar">
+        <h2>Viandas</h2>
+        <button class="btn btn-primary" onclick="openViandaModal()">+ Nueva</button>
+      </div>
+
+      <div class="data-table card">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Costo</th>
+              <th>Venta</th>
+              <th>Ganancia</th>
+              <th>Stock</th>
+              <th>A producir</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="viandas-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card-list" id="viandas-card-list"></div>
+    </section>
+
+    <section class="page" id="page-pedidos">
+      <div class="toolbar">
+        <h2>Pedidos</h2>
+        <button class="btn btn-primary" onclick="openPedidoModal()">+ Nuevo</button>
+      </div>
+
+      <div class="data-table card">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Entrega</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="pedidos-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card-list" id="pedidos-card-list"></div>
+    </section>
+
+    <section class="page" id="page-produccion">
+      <div class="toolbar">
+        <h2>Producción</h2>
+        <div class="toolbar-actions">
+          <button class="btn btn-success btn-sm" onclick="openProduccionModal()">+ Registrar</button>
+          <button class="btn btn-outline btn-sm" onclick="cargarProduccion()">⟳</button>
+        </div>
+      </div>
+
+      <div id="produccion-resumen" class="mb-12"></div>
+
+      <div class="data-table card">
+        <table>
+          <thead>
+            <tr>
+              <th>Vianda</th>
+              <th>Stock</th>
+              <th>Pendientes</th>
+              <th>A producir</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="produccion-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card-list" id="produccion-card-list"></div>
+    </section>
+
+    <section class="page" id="page-stock">
+      <div class="toolbar">
+        <h2>Movimientos</h2>
+        <button class="btn btn-outline btn-sm" onclick="cargarMovimientos()">⟳</button>
+      </div>
+
+      <div class="data-table card">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Vianda</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="movimientos-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card-list" id="movimientos-card-list"></div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="modal-vianda">
+    <div class="modal">
+      <h3 id="vianda-modal-title">Nueva vianda</h3>
+      <input type="hidden" id="vianda-id">
+
+      <div class="form-group">
+        <label for="vianda-nombre">Nombre</label>
+        <input id="vianda-nombre" placeholder="Ej: Pollo con arroz">
+      </div>
+
+      <div class="form-group">
+        <label for="vianda-descripcion">Descripción</label>
+        <textarea id="vianda-descripcion" placeholder="Opcional"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="vianda-costo">Costo ($)</label>
+          <input id="vianda-costo" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+
+        <div class="form-group">
+          <label for="vianda-precio">Precio venta ($)</label>
+          <input id="vianda-precio" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="vianda-stock">Stock</label>
+        <input id="vianda-stock" type="number" value="0">
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-vianda')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarVianda()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-pedido">
+    <div class="modal">
+      <h3>Nuevo pedido</h3>
+      <div class="form-group">
+        <label for="pedido-cliente">Cliente</label>
+        <input id="pedido-cliente" placeholder="Nombre del cliente">
+      </div>
+
+      <div class="form-group">
+        <label for="pedido-fecha-entrega">Fecha de entrega</label>
+        <input id="pedido-fecha-entrega" type="datetime-local">
+      </div>
+
+      <div class="form-group">
+        <label for="pedido-notas">Notas</label>
+        <textarea id="pedido-notas" placeholder="Opcional"></textarea>
+      </div>
+
+      <h4 class="sub-title">Items del pedido</h4>
+      <div id="pedido-items-container"></div>
+      <button class="btn btn-outline" onclick="agregarItemPedido()" style="width:100%;">+ Agregar vianda</button>
+
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-pedido')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarPedido()">Crear pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-produccion">
+    <div class="modal">
+      <h3>Registrar producción</h3>
+
+      <div class="form-group">
+        <label for="produccion-vianda">Vianda</label>
+        <select id="produccion-vianda"></select>
+      </div>
+
+      <div class="form-group">
+        <label for="produccion-cantidad">Cantidad producida</label>
+        <input id="produccion-cantidad" type="number" min="1" value="1">
+      </div>
+
+      <div class="form-group">
+        <label for="produccion-motivo">Motivo</label>
+        <input id="produccion-motivo" placeholder="Ej: Producción mañana">
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-produccion')">Cancelar</button>
+        <button class="btn btn-success" onclick="guardarProduccion()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal">
+      <div class="confirm-text" id="confirm-text">¿Confirmar?</div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-confirm')">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-btn">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-pedido-detail">
+    <div class="modal">
+      <h3 id="pedido-detail-title">Detalle del pedido</h3>
+      <div id="pedido-detail-content"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-pedido-detail')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
