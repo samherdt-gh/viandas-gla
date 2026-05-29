@@ -368,8 +368,8 @@ api.post('/pedidos', async (req, res, next) => {
       throw mapDbError(itemsError, 'No se pudieron guardar los items del pedido');
     }
 
-    const totalVenta = sumBy(rows, (row) => toMoney(row.precio_unitario) * Number(row.cantidad || 0));
-    const totalCosto = sumBy(rows, (row) => toMoney(row.costo_unitario) * Number(row.cantidad || 0));
+    const totalVenta = rows.reduce((s, r) => s + toMoney(r.precio_unitario) * Number(r.cantidad || 0), 0);
+    const totalCosto = rows.reduce((s, r) => s + toMoney(r.costo_unitario) * Number(r.cantidad || 0), 0);
     const ganancia = toMoney(totalVenta - totalCosto);
 
     const { data: pedidoActualizado, error: updateError } = await supabase
@@ -383,11 +383,15 @@ api.post('/pedidos', async (req, res, next) => {
       .select('*')
       .single();
 
-    if (updateError) throw mapDbError(updateError, 'No se pudo actualizar totales del pedido');
+    if (updateError) {
+      await supabase.from('pedido_items').delete().eq('pedido_id', pedidoCreado.id);
+      await supabase.from('pedidos').delete().eq('id', pedidoCreado.id);
+      throw mapDbError(updateError, 'No se pudieron actualizar los totales');
+    }
 
     res.status(201).json({
       ...pedidoActualizado,
-      items_count: sumBy(rows, (r) => Number(r.cantidad || 0))
+      items_count: rows.reduce((s, r) => s + Number(r.cantidad || 0), 0)
     });
   } catch (err) {
     next(err);
