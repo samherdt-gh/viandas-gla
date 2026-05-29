@@ -108,6 +108,7 @@ async function navegar(page) {
 
 document.querySelectorAll('.sidebar nav a, .mobile-nav a').forEach((a) => {
   a.addEventListener('click', async (event) => {
+    if (!a.dataset.page) return;
     event.preventDefault();
     await navegar(a.dataset.page);
   });
