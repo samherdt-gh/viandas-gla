@@ -148,44 +148,67 @@ async function cargarDashboard() {
     alerta.innerHTML = '<div class="alert alert-success">✅ No hay producción pendiente.</div>';
   }
 
+  const todayStamp = new Date().toISOString().slice(0, 10);
+
   const pendientes = document.getElementById('entregas-pendientes');
   if (!s.entregasPendientes?.length) {
     pendientes.innerHTML = '<div class="empty-state">No hay entregas pendientes.</div>';
   } else {
-    pendientes.innerHTML = s.entregasPendientes.map((p) => `
-      <div class="card-list-item">
-        <div class="row">
-          <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
-          ${renderEstadoBadge(p.estado)}
+    pendientes.innerHTML = s.entregasPendientes.map((p) => {
+      const fechaEntrega = p.fecha_entrega ? new Date(p.fecha_entrega) : null;
+      const diffDays = fechaEntrega ? Math.ceil((fechaEntrega.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
+      let urgency = '';
+      if (diffDays !== null) {
+        if (diffDays < 0) urgency = '<span class="badge badge-cancelado" style="margin-left:6px;">Vencido</span>';
+        else if (diffDays === 0) urgency = '<span class="badge badge-pendiente" style="margin-left:6px;">Hoy</span>';
+        else if (diffDays <= 2) urgency = '<span class="badge badge-en_proceso" style="margin-left:6px;">Próximo</span>';
+      }
+      return `
+        <div class="card-list-item">
+          <div class="row">
+            <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)} ${urgency}</span>
+            ${renderEstadoBadge(p.estado)}
+          </div>
+          <div class="row">
+            <span class="label">Entrega</span>
+            <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)}</span>
+          </div>
+          <div class="row">
+            <span class="label">Total</span>
+            <span class="value">${formatMoney(p.total_venta)}</span>
+          </div>
         </div>
-        <div class="row">
-          <span class="label">Entrega</span>
-          <span class="value">${formatDate(p.fecha_entrega)}</span>
-        </div>
-        <div class="row">
-          <span class="label">Total</span>
-          <span class="value">${formatMoney(p.total_venta)}</span>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
+  const hoy = s.entregasPendientes.filter((p) => {
+    if (!p.fecha_entrega) return false;
+    return p.fecha_entrega.startsWith(todayStamp);
+  });
+
   const recientes = document.getElementById('recientes-list');
-  if (!s.pedidosRecientes?.length) {
-    recientes.innerHTML = '<div class="empty-state">No hay pedidos recientes.</div>';
-  } else {
-    recientes.innerHTML = s.pedidosRecientes.map((p) => `
-      <div class="card-list-item">
-        <div class="row">
-          <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
-          ${renderEstadoBadge(p.estado)}
+  if (hoy.length > 0) {
+    recientes.innerHTML = `
+      <div class="card-title" style="margin-bottom:8px;">📅 Entregas de hoy</div>
+      ${hoy.map((p) => `
+        <div class="card-list-item" style="background:#fffbeb;border:1px solid #f59e0b;">
+          <div class="row">
+            <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
+            ${renderEstadoBadge(p.estado)}
+          </div>
+          <div class="row">
+            <span class="label">Total</span>
+            <span class="value">${formatMoney(p.total_venta)}</span>
+          </div>
         </div>
-        <div class="row">
-          <span class="label">${formatDate(p.created_at)}</span>
-          <span class="value">${formatMoney(p.total_venta)}</span>
-        </div>
+      `).join('')}
+      <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);text-align:center;">
+        <a href="#" onclick="navegar('pedidos');return false;">Ver todos los pedidos →</a>
       </div>
-    `).join('');
+    `;
+  } else {
+    recientes.innerHTML = '<div class="empty-state">✅ No hay entregas programadas para hoy.</div>';
   }
 }
 
@@ -338,17 +361,29 @@ async function cargarPedidos() {
     </tr>
   `).join('');
 
+  function calcUrgency(fechaEntrega) {
+    if (!fechaEntrega) return '';
+    const diff = Math.ceil((new Date(fechaEntrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return '<span class="badge badge-cancelado" style="margin-left:6px;">Vencido</span>';
+    if (diff === 0) return '<span class="badge badge-pendiente" style="margin-left:6px;">Hoy</span>';
+    if (diff <= 2) return '<span class="badge badge-en_proceso" style="margin-left:6px;">Próximo</span>';
+    return '';
+  }
+
   cards.innerHTML = pedidos.map((p) => `
     <div class="card-list-item">
       <div class="row">
-        <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
+        <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)} ${calcUrgency(p.fecha_entrega)}</span>
         ${renderEstadoBadge(p.estado)}
       </div>
-      <div class="row"><span class="label">Entrega</span><span class="value">${formatDate(p.fecha_entrega)}</span></div>
+      <div class="row">
+        <span class="label">Entrega</span>
+        <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)}</span>
+      </div>
       <div class="row"><span class="label">Items</span><span class="value">${p.items_count || 0}</span></div>
       <div class="row"><span class="label">Total</span><span class="value">${formatMoney(p.total_venta)}</span></div>
       <div class="row">
-        <span class="label">${formatDate(p.created_at)}</span>
+        <span class="label">Creado</span>
         <span class="actions">
           <button class="btn btn-outline btn-sm" onclick="verPedido(${p.id})">👁️</button>
           <button class="btn btn-danger btn-sm" onclick="eliminarPedido(${p.id})">🗑️</button>
@@ -372,6 +407,14 @@ function showPedidoDetail(p) {
     </div>
   `).join('');
 
+  let urgencyBadge = '';
+  if (p.fecha_entrega) {
+    const diff = Math.ceil((new Date(p.fecha_entrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) urgencyBadge = '<span class="badge badge-cancelado" style="margin-left:6px;">Vencido</span>';
+    else if (diff === 0) urgencyBadge = '<span class="badge badge-pendiente" style="margin-left:6px;">Hoy</span>';
+    else if (diff <= 2) urgencyBadge = '<span class="badge badge-en_proceso" style="margin-left:6px;">Próximo</span>';
+  }
+
   document.getElementById('pedido-detail-content').innerHTML = `
     <div class="detail-section">
       <div class="detail-section-title">Información</div>
@@ -381,7 +424,7 @@ function showPedidoDetail(p) {
       </div>
       <div class="detail-row">
         <span class="detail-label">Entrega</span>
-        <span class="detail-value">${formatDate(p.fecha_entrega)}</span>
+        <span class="detail-value">${formatDate(p.fecha_entrega)} ${urgencyBadge}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Creado</span>
@@ -532,8 +575,80 @@ async function guardarPedido() {
 }
 
 async function cargarMovimientos() {
-  showLoading('movimientos-table-body', 'movimientos-card-list');
-  const movimientos = await api('/movimientos');
+  showLoading('movimientos-table-body', 'movimientos-card-list', 'stock-resumen-content');
+
+  const [movimientos, plan] = await Promise.all([
+    api('/movimientos'),
+    api('/produccion')
+  ]);
+
+  const resumen = document.getElementById('stock-resumen-content');
+
+  if (!plan.items.length) {
+    resumen.innerHTML = '<div class="empty-state">No hay viandas registradas.</div>';
+  } else {
+    const totalFaltante = plan.items.reduce((s, i) => s + i.a_producir, 0);
+    resumen.innerHTML = `
+      <div class="data-table card" style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Vianda</th>
+              <th style="text-align:center">Stock</th>
+              <th style="text-align:center">Comprometido</th>
+              <th style="text-align:center">Faltante</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${plan.items.map((item) => {
+              const stock = Number(item.stock);
+              const pendientes = Number(item.pendientes);
+              const aProducir = Number(item.a_producir);
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(item.nombre)}</strong></td>
+                  <td style="text-align:center;font-weight:700;color:${stock <= 0 ? 'var(--danger)' : stock <= 5 ? 'var(--warning)' : 'var(--text)'}">${stock}</td>
+                  <td style="text-align:center">${pendientes}</td>
+                  <td style="text-align:center;font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card-list" id="stock-resumen-cards">
+        ${plan.items.map((item) => {
+          const stock = Number(item.stock);
+          const pendientes = Number(item.pendientes);
+          const aProducir = Number(item.a_producir);
+          return `
+            <div class="card-list-item" style="${aProducir > 0 ? 'background:#fff7ed;' : ''}">
+              <div class="row">
+                <span><strong>${escapeHtml(item.nombre)}</strong></span>
+                ${aProducir > 0 ? '<span class="badge badge-pendiente">Faltante</span>' : '<span class="badge badge-entregado">OK</span>'}
+              </div>
+              <div class="row"><span class="label">Stock</span><span class="value" style="font-weight:700;color:${stock <= 0 ? 'var(--danger)' : 'var(--text)'}">${stock}</span></div>
+              <div class="row"><span class="label">Comprometido</span><span class="value">${pendientes}</span></div>
+              <div class="row"><span class="label">Faltante</span><span class="value" style="font-weight:700;color:${aProducir > 0 ? 'var(--danger)' : 'var(--success)'}">${aProducir > 0 ? aProducir : '—'}</span></div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      ${totalFaltante > 0 ? `
+        <div class="alert alert-warning" style="margin:12px 0;">
+          ⚠️ Hay <strong>${totalFaltante}</strong> viandas faltantes en total.
+          <a href="#" onclick="navegar('produccion');return false;">Ver producción</a>
+        </div>
+      ` : `
+        <div class="alert alert-success" style="margin:12px 0;">
+          ✅ Todo cubierto con stock actual.
+        </div>
+      `}
+    `;
+  }
+
   const tbody = document.getElementById('movimientos-table-body');
   const cards = document.getElementById('movimientos-card-list');
 

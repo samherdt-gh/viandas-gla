@@ -38,7 +38,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Pedidos recientes</div>
+        <div class="card-title">📅 Próximas entregas</div>
         <div id="recientes-list"></div>
       </div>
     </section>
@@ -126,26 +126,31 @@
 
     <section class="page" id="page-stock">
       <div class="toolbar">
-        <h2>Movimientos</h2>
+        <h2>Stock</h2>
         <button class="btn btn-outline btn-sm" onclick="cargarMovimientos()">⟳</button>
       </div>
 
-      <div class="data-table card">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Vianda</th>
-              <th>Tipo</th>
-              <th>Cantidad</th>
-              <th>Motivo</th>
-            </tr>
-          </thead>
-          <tbody id="movimientos-table-body"></tbody>
-        </table>
-      </div>
+      <div id="stock-resumen-content"></div>
 
-      <div class="card-list" id="movimientos-card-list"></div>
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">Movimientos</div>
+        <div class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Vianda</th>
+                <th>Tipo</th>
+                <th>Cantidad</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="movimientos-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card-list" id="movimientos-card-list"></div>
+      </div>
     </section>
   </main>
 
