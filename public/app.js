@@ -20,7 +20,7 @@ function escapeHtml(value) {
 
 function formatMoney(value) {
   const num = Number(value || 0);
-  return `$${num.toFixed(2)}`;
+  return `$${Math.round(num)}`;
 }
 
 function formatDate(value, withTime = true) {
@@ -157,7 +157,7 @@ async function cargarDashboard() {
           </div>
           <div class="row">
             <span class="label">Entrega</span>
-            <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)}</span>
+            <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega, false)}</span>
           </div>
           <div class="row">
             <span class="label">Total</span>
@@ -322,7 +322,7 @@ async function cargarPedidos() {
     <tr>
       <td>#${p.id}</td>
       <td>${escapeHtml(p.cliente)}</td>
-      <td>${formatDate(p.fecha_entrega)}</td>
+      <td>${formatDate(p.fecha_entrega, false)}</td>
       <td>${p.items_count || 0}</td>
       <td>${formatMoney(p.total_venta)}</td>
       <td>${(function () {
@@ -360,7 +360,7 @@ async function cargarPedidos() {
       </div>
       <div class="row">
         <span class="label">Entrega</span>
-        <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega)} ${!p.fecha_entrega ? '<span style="color:var(--text-secondary);font-size:12px;">— sin fecha asignada</span>' : ''}</span>
+        <span class="value" style="font-weight:700;">${formatDate(p.fecha_entrega, false)} ${!p.fecha_entrega ? '<span style="color:var(--text-secondary);font-size:12px;">— sin fecha asignada</span>' : ''}</span>
       </div>
       <div class="row"><span class="label">Items</span><span class="value">${p.items_count || 0}</span></div>
       <div class="row"><span class="label">Total</span><span class="value">${formatMoney(p.total_venta)}</span></div>
@@ -406,7 +406,7 @@ function showPedidoDetail(p) {
       </div>
       <div class="detail-row">
         <span class="detail-label">Entrega</span>
-        <span class="detail-value">${formatDate(p.fecha_entrega)} ${urgencyBadge}</span>
+        <span class="detail-value">${formatDate(p.fecha_entrega, false)} ${urgencyBadge}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Creado</span>
