@@ -226,15 +226,27 @@ async function generarImagenIA() {
   const desc = document.getElementById('vianda-descripcion').value.trim();
   const status = document.getElementById('vianda-img-status');
   status.textContent = 'Generando imagen...';
-  const partes = [`Una vianda casera de ${nombre}`];
-  if (desc) partes.push(`, ${desc}`);
-  partes.push(`, fotografia culinaria profesional, iluminacion natural, plato blanco, hierbas frescas decorando, estilo gastronomico`);
-  const prompt = encodeURIComponent(partes.join(''));
 
-  const url = `https://image.pollinations.ai/prompt/${prompt}?width=512&height=512&nofeed=true`;
-  document.getElementById('vianda-imagen').value = url;
-  actualizarPreviewImagen(url);
-  status.textContent = 'Imagen generada con IA ✨';
+  // Build a bilingual prompt: the food in Spanish, style keywords in English
+  const parts = [`Comida casera: ${nombre}`];
+  if (desc) parts.push(`, ${desc}`);
+  parts.push(`, professional food photography, natural lighting, white plate, fresh herbs, culinary, high quality, realistic`);
+
+  const prompt = encodeURIComponent(parts.join(''));
+  const seed = Date.now();
+  const url = `https://image.pollinations.ai/prompt/${prompt}?width=512&height=512&seed=${seed}&model=flux`;
+
+  // Preload the image so it renders when added to the DOM
+  const img = new Image();
+  img.onload = () => {
+    document.getElementById('vianda-imagen').value = url;
+    actualizarPreviewImagen(url);
+    status.textContent = 'Imagen generada con IA ✨';
+  };
+  img.onerror = () => {
+    status.textContent = 'Error al generar, intentá de nuevo';
+  };
+  img.src = url;
 }
 
 function renderViandas(viandas, aProducirMap) {
