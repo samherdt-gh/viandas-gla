@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sabores de la GLA — Pedí online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="cat-header">
+    <img src="/logo.png" alt="" class="cat-logo">
+    <div>
+      <div class="cat-brand">Sabores de la GLA</div>
+      <div class="cat-sub">Pedí online — Retirá en el local</div>
+    </div>
+  </div>
+
+  <main class="cat-main">
+    <section class="cat-menu" id="catalogo-viandas">
+      <div class="cat-section-title">Nuestras viandas</div>
+      <div id="viandas-list" class="viandas-grid"></div>
+    </section>
+
+    <section class="cat-cart" id="catalogo-carrito">
+      <div class="cat-section-title" style="margin-top:8px;">Tu pedido</div>
+      <div id="cart-items" class="cart-items">
+        <div class="empty-state">Agregá viandas del menú</div>
+      </div>
+
+      <div class="cart-form">
+        <div class="cart-field">
+          <label for="cart-cliente">Tu nombre</label>
+          <input id="cart-cliente" type="text" placeholder="Ej: Juan Pérez" maxlength="120">
+        </div>
+        <div class="cart-field">
+          <label for="cart-notas">Notas (opcional)</label>
+          <textarea id="cart-notas" placeholder="Algún comentario..." maxlength="2000"></textarea>
+        </div>
+        <div class="cart-total" id="cart-total">Total: $0</div>
+        <button class="cat-btn" id="btn-enviar" onclick="enviarPedido()">Enviar pedido</button>
+        <div id="cart-mensaje"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="cat-footer">
+    <span>Sabores de la GLA © 2026</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
