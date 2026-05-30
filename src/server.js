@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
+const https = require('https');
 const { supabase } = require('./supabase');
 
 const app = express();
@@ -100,6 +101,70 @@ async function fetchPedidoItems(pedidoId) {
     ...item,
     vianda_nombre: item.viandas?.nombre || 'Vianda eliminada'
   }));
+}
+
+function sendWhatsApp({ cliente, telefono, direccion, items, total, notas }) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const recipient = process.env.WHATSAPP_RECIPIENT;
+
+  if (!token || !phoneNumberId || !recipient) return;
+
+  const itemsList = items
+    .map((item) => `${item.cantidad}x ${item.nombre || 'Vianda'}`)
+    .join('\n');
+
+  const lines = [
+    'Nuevo pedido en Sabores de la GLA',
+    '',
+    `Cliente: ${cliente}`,
+    `Teléfono: ${telefono}`,
+    `Dirección: ${direccion}`,
+    '',
+    'Items:',
+    itemsList,
+    '',
+    `Total: $${Math.round(total)}`
+  ];
+  if (notas) lines.push(`\nNotas: ${notas}`);
+
+  const textBody = lines.join('\n');
+
+  const payload = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'text',
+    text: { body: textBody }
+  });
+
+  const options = {
+    hostname: 'graph.facebook.com',
+    port: 443,
+    path: `/v21.0/${phoneNumberId}/messages`,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload)
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+      if (res.statusCode !== 200 && res.statusCode !== 201) {
+        console.error('WhatsApp API error:', res.statusCode, data);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error('WhatsApp request error:', err.message);
+  });
+
+  req.write(payload);
+  req.end();
 }
 
 async function buildProduccionPlan() {
@@ -423,6 +488,18 @@ api.post('/pedidos', async (req, res, next) => {
       await supabase.from('pedidos').delete().eq('id', pedidoCreado.id);
       throw mapDbError(updateError, 'No se pudieron actualizar los totales');
     }
+
+    sendWhatsApp({
+      cliente,
+      telefono: telefono || 'Sin teléfono',
+      direccion: direccion || 'Sin dirección',
+      items: rows.map((r) => ({
+        cantidad: r.cantidad,
+        nombre: viandasById.get(r.vianda_id)?.nombre || 'Vianda'
+      })),
+      total: totalVenta,
+      notas
+    });
 
     res.status(201).json({
       ...pedidoActualizado,
