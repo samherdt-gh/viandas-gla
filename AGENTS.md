@@ -44,21 +44,70 @@ Viandas - Gla/
         └── app.js          # frontend catálogo (carrito, categorías, checkout)
 ```
 
-### WhatsApp Cloud API
-- Al crear un pedido desde el catálogo, se envía automáticamente un mensaje al WhatsApp del dueño
-- Implementado con `https.request` a `graph.facebook.com/v21.0/{phone-number-id}/messages`
-- No bloquea la respuesta (fire & forget)
-- Se saltea silenciosamente si faltan las credenciales
+### WhatsApp Cloud API — Notificaciones de pedidos
 
-### Setup WhatsApp Cloud API
-1. Ir a https://developers.facebook.com → crear app tipo "Business"
-2. Agregar producto "WhatsApp Cloud API"
-3. Configurar número de WhatsApp (podés usar tu número personal, lo verifican con código SMS)
-4. Copiar **Phone Number ID** y **Permanent Access Token** (WABA)
-5. Setear en `.env` y en Render env vars:
-   - `WHATSAPP_TOKEN`
-   - `WHATSAPP_PHONE_NUMBER_ID`
-   - `WHATSAPP_RECIPIENT` (número del dueño, ej: 541141112233, sin + ni espacios)
+#### Cómo funciona
+- Cuando un cliente envía un pedido desde el catálogo público (`/catalogo/`), el backend (`POST /api/pedidos` en `src/server.js`) crea el pedido en Supabase y luego llama a `sendWhatsApp()`
+- `sendWhatsApp()` envía un mensaje de texto al número del dueño vía WhatsApp Cloud API de Meta
+- La llamada es **fire & forget** (no bloquea la respuesta al cliente)
+- Si faltan las credenciales, se saltea silenciosamente — la app sigue funcionando sin WhatsApp
+
+#### Formato del mensaje que recibe el dueño
+```
+Nuevo pedido en Sabores de la GLA
+
+Cliente: Juan Pérez
+Teléfono: 541141112233
+Dirección: Av. Siempre Viva 123
+
+Items:
+2x Milanesa con puré
+1x Ensalada Caesar
+
+Total: $4500
+
+Notas: Sin cebolla
+```
+
+#### Archivos modificados
+| Archivo | Cambio |
+|---------|--------|
+| `src/server.js:5` | Se agregó `require('https')` |
+| `src/server.js:106-165` | Función `sendWhatsApp()` con manejo de errores |
+| `src/server.js:477-487` | Llamada a `sendWhatsApp()` tras crear pedido exitoso |
+| `.env.example` | Variables `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_RECIPIENT` |
+| `.env` | Idem (con valores reales, no trackeado) |
+
+#### Setup paso a paso (una sola vez)
+
+1. Ir a **https://developers.facebook.com** → **My Apps** → **Create App** → tipo **"Business"**
+2. Agregar producto **"WhatsApp Cloud API"**
+3. En **"Quickstart"** te aparecen:
+   - **Phone Number ID** (ej: `1191773527347267`)
+   - **Temporary Access Token** (expira, para pruebas)
+4. Configurar un número de WhatsApp (puede ser el número personal del dueño — llega un SMS de verificación)
+5. **Enviar un mensaje desde el WhatsApp del dueño al número de prueba** de Meta para abrir la ventana de conversación de 24h (necesario solo en sandbox)
+6. Probar el envío con el `curl` que te da Meta
+7. Para producción: generar un **Permanent Access Token** en **API Setup > Manage > Add Token**
+
+#### Variables de entorno
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `WHATSAPP_TOKEN` | Token de acceso (temporal o permanente) | `EAAXZCtEl85ZCcB...` |
+| `WHATSAPP_PHONE_NUMBER_ID` | ID del número de WhatsApp business | `1191773527347267` |
+| `WHATSAPP_RECIPIENT` | Número del dueño (código país + número, sin + ni espacios) | `543425020887` |
+
+#### Costos
+- **Acceso a la API**: gratuito
+- **Sandbox de pruebas**: completamente gratis
+- **Producción**: las primeras 1,000 conversaciones de servicio al mes son gratis
+- Para el volumen de un negocio chico (~5-10 pedidos/día), el costo es **$0 mensual**
+
+#### Notas técnicas
+- En el sandbox de Meta solo se pueden enviar mensajes de texto libre (`type: 'text'`) dentro de los 24h posteriores a que el dueño envió un mensaje al número de prueba
+- En producción con token permanente, los mensajes de texto libre funcionan sin restricción de ventana
+- El endpoint usado es: `POST https://graph.facebook.com/v21.0/{phone-number-id}/messages`
+- Si el token expira o es inválido, el error se loguea a stderr (visible en logs de Render)
 
 ## Funcionalidades implementadas
 
