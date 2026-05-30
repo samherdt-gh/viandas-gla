@@ -9,6 +9,7 @@ App web de gestión de viandas (mobile-first, pastel palette, logo-based brandin
 - **Frontend**: HTML + CSS + JS vanilla (mobile-first, sin frameworks)
 - **Storage**: Supabase Storage (bucket `viandas-imagenes`, público)
 - **IA imágenes**: Pollinations.ai (gratis, sin API key)
+- **Seguridad**: helmet, cors, express-rate-limit
 
 ## Despliegue
 - **Render** plan free: `https://viandas-gla.onrender.com`
@@ -109,6 +110,80 @@ Notas: Sin cebolla
 - El endpoint usado es: `POST https://graph.facebook.com/v21.0/{phone-number-id}/messages`
 - Si el token expira o es inválido, el error se loguea a stderr (visible en logs de Render)
 
+### Node.js Best Practices — Mejoras aplicadas (30/05/2026)
+
+#### Paquetes instalados
+| Paquete | Versión | Propósito |
+|---------|---------|-----------|
+| `helmet` | ^8.1.0 | Cabeceras de seguridad HTTP (CSP, X-Frame-Options, etc.) |
+| `cors` | ^2.8.5 | Control de acceso cross-origin |
+| `express-rate-limit` | ^7.5.0 | Rate limiting por IP |
+
+#### Variables de entorno agregadas
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `CORS_ORIGIN` | Origen permitido para CORS | `https://viandas-gla.onrender.com` |
+| `NODE_ENV` | Entorno (development/production) | `production` |
+
+#### Cambios en `src/server.js`
+
+**1. Middleware de seguridad (línea ~33)**
+- `helmet()` — protege contra vulnerabilidades HTTP comunes
+- `cors({ origin: CORS_ORIGIN })` — solo permite peticiones desde el dominio del negocio
+- `express-rate-limit` — 300 req/min en dev, 60 req/min en prod, evita abusos
+
+**2. `asyncHandler` wrapper (línea ~63)**
+- Función que envuelve handlers asíncronos y captura errores automáticamente
+- Elimina la necesidad de try/catch en todas las rutas
+- El error se pasa a `next(err)` y lo maneja el error handler central
+
+```js
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+```
+
+**3. Error handler central (línea ~540+)**
+- En desarrollo: responde JSON con mensaje + stack trace completo
+- En producción: responde JSON con mensaje genérico (oculta detalles internos)
+- Loguea a stderr con timestamp y stack
+- Todos los errores HTTP conocidos responden con su código (404, 400, etc.)
+
+**4. Graceful shutdown (línea ~560+)**
+- Captura `SIGTERM` y `SIGINT` (Render envía SIGTERM al detener/freeze)
+- Cierra `server.close()` y espera conexiones activas terminar
+- Loguea shutdown graceful vs forzado
+- Sale con código 0
+
+**5. AsyncHandler aplicado a todas las rutas**
+- `POST /api/viandas` (crear vianda)
+- `PUT /api/viandas/:id` (editar vianda)
+- `DELETE /api/viandas/:id` (eliminar vianda)
+- `POST /api/imagen-vianda` (subir imagen a Supabase Storage)
+- `GET /api/pedidos` (listar pedidos)
+- `POST /api/pedidos` (crear pedido, con WhatsApp)
+- `PUT /api/pedidos/:id` (actualizar pedido)
+- `GET /api/catalogo` (viandas disponibles para catálogo)
+- `POST /api/produccion` (registrar producción)
+- `GET /api/movimientos` (listar movimientos stock)
+- `GET /api/stats` (dashboard stats)
+- `GET /api/stats/ventas-por-vianda` (ventas agrupadas)
+- `GET /api/stats/entregas-por-dia` (entregas timeline)
+- `DELETE /api/viandas/:id/imagen` (borrar imagen de Storage)
+
+**6. Manejador 400 para JSON inválido**
+- Si el body no es JSON válido, responde con 400 sin crash
+
+**7. Manejador 404 para rutas API inexistentes**
+- Cualquier `GET/POST/PUT/DELETE /api/*` no definida responde JSON `{ error: "Ruta no encontrada" }`
+
+#### Archivos modificados
+| Archivo | Cambio |
+|---------|--------|
+| `package.json` | Se agregaron `helmet`, `cors`, `express-rate-limit` a dependencies |
+| `.env.example` | Se agregó `CORS_ORIGIN` y comentario `NODE_ENV` |
+| `src/server.js` | Se agregaron imports, middleware, asyncHandler, error handler, graceful shutdown |
+| `AGENTS.md` | Este documento |
+
 ## Funcionalidades implementadas
 
 ### Gestión de viandas
@@ -189,6 +264,10 @@ Notas: Sin cebolla
 - **Subida de imágenes** base64 → backend → Supabase Storage (sin multer)
 - **IA generativa** con Pollinations.ai para imágenes de viandas (gratis)
 - **Migraciones automáticas** al iniciar el servidor (detecta columnas faltantes)
+- **asyncHandler** para eliminar try/catch repetitivos en rutas Express
+- **Helmet + CORS + Rate-limit** para seguridad básica en producción
+- **Graceful shutdown** para que Render pueda detener el proceso limpiamente
+- **Error handler central** que oculta detalles internos en producción (seguridad)
 
 ## Próximos pasos (pendientes)
 1. **Autenticación**: login con Supabase Auth (email + contraseña), proteger rutas admin, solo usuarios autorizados
