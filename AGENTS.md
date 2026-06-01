@@ -273,6 +273,18 @@ const asyncHandler = (fn) => (req, res, next) =>
 1. **Autenticación**: login con Supabase Auth (email + contraseña), proteger rutas admin, solo usuarios autorizados
 2. (sugerido) Editar items de pedido existentes en el modal de edición
 
+## 01/06/2026 — Fix bug + Keep-alive
+
+### Bug corregido
+- **`public/app.js:188`**: se llamaba a `esc(c)` que no existe en el admin (solo en el catálogo). Cambiado a `escapeHtml(c)`. Causaba `ReferenceError` al abrir el modal de viandas ("Nueva vianda" o editar).
+- Se agregó `CORS_ORIGIN=http://localhost:3000` al `.env` local.
+- Se documentaron `NODE_ENV` y `CORS_ORIGIN` en `.env.example`.
+
+### Keep-alive (Render cold start)
+- Se creó `.github/workflows/keep-alive.yml` — GitHub Action que hace ping a `https://viandas-gla.onrender.com/api/health` cada 10 minutos.
+- Esto evita que Render duerma el servidor tras 15 min de inactividad.
+- Se actualizó el token de GitHub para permitir `workflow` scope.
+
 ## Comandos útiles
 ```bash
 # Desarrollo
