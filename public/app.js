@@ -185,7 +185,7 @@ function openViandaModal(vianda = null) {
   actualizarPreviewImagen(vianda?.imagen);
   // Populate category datalist from existing viandas
   const cats = [...new Set(viandasCache.map(v => v.categoria).filter(Boolean))].sort();
-  document.getElementById('categoria-list').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  document.getElementById('categoria-list').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
   document.getElementById('modal-vianda').classList.add('open');
 }
 
