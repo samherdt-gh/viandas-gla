@@ -196,6 +196,7 @@ const asyncHandler = (fn) => (req, res, next) =>
 ### Gestión de pedidos
 - CRUD completo con items por vianda
 - Edición inline de pedidos: cliente, teléfono, dirección, fecha de entrega, notas
+- **Edición de items en pedidos existentes** (ver 02/06/2026): agregar, cambiar cantidad o eliminar viandas; recalcula totales en el servidor
 - Estados: pendiente → en_proceso → listo → entregado / cancelado
 - Al marcar como `entregado`: descuenta stock + registra movimiento
 - Al revertir de `entregado`: repone stock + registra reversión
@@ -271,7 +272,40 @@ const asyncHandler = (fn) => (req, res, next) =>
 
 ## Próximos pasos (pendientes)
 1. **Autenticación**: login con Supabase Auth (email + contraseña), proteger rutas admin, solo usuarios autorizados
-2. (sugerido) Editar items de pedido existentes en el modal de edición
+
+## 02/06/2026 — Editar items en pedidos + carga de catálogo
+
+### Feature: editar items de un pedido existente
+- **Backend** (`src/server.js:511-577`): `PUT /api/pedidos/:id` ahora acepta un array `items`. Si viene, borra los `pedido_items` viejos, inserta los nuevos con precio/costo actual de la vianda, y recalcula `total_venta` / `total_costo` / `ganancia`.
+  - **Rechaza con 400** si el pedido está en estado `entregado` (para no descontrolar el stock ya descontado). Mensaje: "No se pueden modificar los items de un pedido ya entregado. Revertí el estado antes de editarlo."
+  - Si el array `items` viene vacío, rechaza con 400.
+  - Si el body NO trae `items`, sólo actualiza los campos del pedido (cliente/teléfono/dirección/fecha/notas), igual que antes.
+- **Frontend** (`public/app.js`):
+  - `showPedidoDetail` ahora es `async` y carga `viandasCache` para popular el dropdown.
+  - En `#pedido-edit-section` se agregó un bloque **Items del pedido** con filas dinámicas (vianda + cantidad + botón ✕), botón `+ Agregar vianda`, y subtotal en vivo calculado con `recalcEditSubtotal()`.
+  - Si el pedido está `entregado`, el editor de items se oculta con un mensaje de aviso.
+  - `guardarEdicionPedido` ahora arma `body.items` a partir de `editPedidoItems` (saltando los borrados) y refresca producción además de pedidos/dashboard.
+  - Estado nuevo: `editPedidoItems = []` con claves únicas para mapear DOM ↔ estado.
+- **Deploy**: commit `1184140` pusheado a `main` y deploy manual disparado vía API de Render (status `live`).
+
+### Carga de catálogo (seed desde la consola)
+- Se borraron todos los datos de prueba: 17 pedidos (cascada a `pedido_items`), todos los `movimientos_stock`, y todas las viandas (incluida una "Tarta keto" #2 que estaba bloqueada por FK de movimientos — se resolvió revirtiendo el pedido #2 a `pendiente` y limpiando movimientos vía Supabase directo).
+- Se cargaron **22 viandas** con foto ilustrativa generada por Pollinations AI y `stock=0` / `costo=0` para que la dueña edite costos.
+  - `PUT /api/viandas/:id` **reemplaza** todos los campos, no es merge — hay que mandar la vianda completa (o perder categoría/precio). Documentado para no tropezar de nuevo.
+  - El campo `nombre` tiene `UNIQUE` constraint, así que "Tartas individuales de verduras (masa de almendra)" y "Tartas individuales de verduras (masa integral)" conviven sin chocar.
+- **Estado actual del catálogo** (4 categorías, 22 productos):
+
+| Categoría | Productos | Precios |
+|-----------|-----------|---------|
+| **Empanadas** | 4 | Carne x6 / Árabes x6: $8000 · Brócoli y queso x6 / Choclo y queso x6: $6000 |
+| **Viandas Clásicas** | 8 | Zapallitos rellenos, Guiso de lentejas, Tartas (masa integral), Canelones de espinaca y ricota, Canelones de choclo, Musaka, Pascualina, Tallarines · todos $6000 |
+| **Hamburguesas Keto** | 6 | Lentejas / Porotos mung / Garbanzos, cada una en versión "rellenas de queso" y "simples" · $7000 |
+| **Viandas Keto** | 4 | Tartas (masa de almendra), Albóndigas de pollo, Pan de almendra, Omelette · $7000 |
+
+### Notas operativas
+- Las imágenes son URLs de `image.pollinations.ai` (mismo método que el botón "Generar imagen IA" del modal de viandas). Re-generables desde la UI.
+- Los nombres con "()" o guiones no rompen nada pero conviene evitar caracteres especiales raros en futuras altas masivas.
+- Para futuras cargas masivas: el patrón es un script Node que use la API + Supabase directo (vía `SUPABASE_SERVICE_ROLE_KEY` del `.env`) para limpiar `movimientos_stock` antes de borrar viandas.
 
 ## 01/06/2026 — Fix bug + Keep-alive
 
