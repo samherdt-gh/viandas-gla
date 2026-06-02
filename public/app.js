@@ -4,6 +4,7 @@ const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
 
 let pedidoItems = [];
 let pedidoEnEdicion = null;
+let editPedidoItems = [];
 let viandasCache = [];
 let produccionCache = [];
 let stockPlanItems = [];
@@ -462,9 +463,16 @@ async function cargarPedidos() {
   `).join('');
 }
 
-function showPedidoDetail(p) {
+async function showPedidoDetail(p) {
   document.getElementById('pedido-detail-title').textContent = `Pedido #${p.id} · ${escapeHtml(p.cliente)}`;
   pedidoEnEdicion = p;
+
+  await getViandas(true);
+  editPedidoItems = (p.items || []).map((item, idx) => ({
+    _key: `e${idx}-${item.id || Math.random().toString(36).slice(2, 7)}`,
+    vianda_id: Number(item.vianda_id),
+    cantidad: Number(item.cantidad)
+  }));
 
   const itemsHtml = (p.items || []).map((item) => `
     <div class="detail-item">
@@ -484,6 +492,7 @@ function showPedidoDetail(p) {
 
   const telefonoHtml = p.telefono ? escapeHtml(p.telefono) : '<span class="text-muted">—</span>';
   const direccionHtml = p.direccion ? escapeHtml(p.direccion) : '<span class="text-muted">—</span>';
+  const isEntregado = p.estado === 'entregado';
 
   document.getElementById('pedido-detail-content').innerHTML = `
     <div class="detail-section">
@@ -555,6 +564,14 @@ function showPedidoDetail(p) {
         <label>Notas</label>
         <textarea id="edit-notas">${escapeHtml(p.notas || '')}</textarea>
       </div>
+      <h4 class="sub-title">Items del pedido</h4>
+      ${isEntregado ? '<div class="alert alert-warning" style="margin:8px 0;">Los items no se pueden modificar en un pedido ya entregado.</div>' : ''}
+      <div id="edit-items-container"></div>
+      ${isEntregado ? '' : '<button class="btn btn-outline" onclick="editAddItem()" style="width:100%;">+ Agregar vianda</button>'}
+      <div class="detail-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <span class="detail-label">Subtotal (estimado)</span>
+        <span class="detail-value" id="edit-subtotal" style="font-weight:700;">${formatMoney(p.total_venta)}</span>
+      </div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="cancelarEdicionPedido()">Cancelar</button>
         <button class="btn btn-primary" onclick="guardarEdicionPedido(${p.id})">Guardar</button>
@@ -562,16 +579,82 @@ function showPedidoDetail(p) {
     </div>
   `;
 
+  renderEditItems();
   document.getElementById('modal-pedido-detail').classList.add('open');
 }
 
 function editarPedido() {
   document.getElementById('pedido-edit-section').style.display = 'block';
+  renderEditItems();
   document.getElementById('pedido-edit-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function cancelarEdicionPedido() {
   document.getElementById('pedido-edit-section').style.display = 'none';
+}
+
+function renderEditItems() {
+  const container = document.getElementById('edit-items-container');
+  if (!container) return;
+  if (!editPedidoItems.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:8px 0;">Sin items. Usá "Agregar vianda" para sumar.</div>';
+  } else {
+    container.innerHTML = editPedidoItems.map((item) => `
+      <div class="pedido-item" data-key="${item._key}">
+        <div class="pedido-item-row">
+          <select onchange="editUpdateItem('${item._key}', 'vianda_id', this.value)">
+            <option value="">Seleccionar</option>
+            ${viandasCache.map((v) => `<option value="${v.id}" ${Number(v.id) === Number(item.vianda_id) ? 'selected' : ''}>${escapeHtml(v.nombre)} (${formatMoney(v.precio_venta)})</option>`).join('')}
+          </select>
+          <input type="number" min="1" value="${item.cantidad}" oninput="editUpdateItem('${item._key}', 'cantidad', this.value)">
+          <button class="btn btn-danger btn-sm" onclick="editRemoveItem('${item._key}')" type="button">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  recalcEditSubtotal();
+}
+
+function editAddItem() {
+  if (!viandasCache.length) {
+    return showToast('Primero cargá una vianda');
+  }
+  editPedidoItems.push({
+    _key: `e-new-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    vianda_id: viandasCache[0].id,
+    cantidad: 1
+  });
+  renderEditItems();
+}
+
+function editRemoveItem(key) {
+  editPedidoItems = editPedidoItems.filter((it) => it._key !== key);
+  renderEditItems();
+}
+
+function editUpdateItem(key, field, value) {
+  const item = editPedidoItems.find((it) => it._key === key);
+  if (!item) return;
+  if (field === 'cantidad') {
+    const n = Math.max(parseInt(value, 10) || 1, 1);
+    item.cantidad = n;
+  } else if (field === 'vianda_id') {
+    item.vianda_id = Number(value) || 0;
+  }
+  recalcEditSubtotal();
+}
+
+function recalcEditSubtotal() {
+  const el = document.getElementById('edit-subtotal');
+  if (!el) return;
+  let total = 0;
+  for (const it of editPedidoItems) {
+    if (!it.vianda_id) continue;
+    const v = viandasCache.find((vi) => Number(vi.id) === Number(it.vianda_id));
+    if (!v) continue;
+    total += Number(v.precio_venta || 0) * Number(it.cantidad || 0);
+  }
+  el.textContent = formatMoney(total);
 }
 
 async function guardarEdicionPedido(id) {
@@ -584,10 +667,19 @@ async function guardarEdicionPedido(id) {
       notas: document.getElementById('edit-notas').value.trim()
     };
     if (!body.cliente) return showToast('El cliente es obligatorio');
+
+    if (pedidoEnEdicion?.estado !== 'entregado') {
+      const items = editPedidoItems
+        .map((it) => ({ vianda_id: Number(it.vianda_id), cantidad: Math.max(Number(it.cantidad) || 1, 1) }))
+        .filter((it) => it.vianda_id > 0);
+      if (!items.length) return showToast('El pedido debe tener al menos un item');
+      body.items = items;
+    }
+
     await api(`/pedidos/${id}`, { method: 'PUT', body });
     showToast('Pedido actualizado', 'success');
     closeModal('modal-pedido-detail');
-    await Promise.all([cargarPedidos(), cargarDashboard()]);
+    await Promise.all([cargarPedidos(), cargarDashboard(), cargarProduccion()]);
   } catch (err) {
     showToast(err.message);
   }

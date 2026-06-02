@@ -520,7 +520,55 @@ api.put('/pedidos/:id', asyncHandler(async (req, res) => {
   if (req.body.direccion !== undefined) updates.direccion = cleanText(req.body.direccion, 200) || null;
   if (req.body.notas !== undefined) updates.notas = cleanText(req.body.notas, 2000) || null;
   if (req.body.fecha_entrega !== undefined) updates.fecha_entrega = parseNullableDate(req.body.fecha_entrega);
-  if (!updates.cliente) throw createHttpError('El cliente no puede estar vacío');
+  if (updates.cliente === '') throw createHttpError('El cliente no puede estar vacío');
+
+  const wantsItems = Array.isArray(req.body?.items);
+
+  if (wantsItems && existing.estado === 'entregado') {
+    throw createHttpError('No se pueden modificar los items de un pedido ya entregado. Revertí el estado antes de editarlo.', 400);
+  }
+
+  if (wantsItems) {
+    const items = req.body.items
+      .map((item) => ({
+        vianda_id: toInt(item?.vianda_id, 0),
+        cantidad: Math.max(toInt(item?.cantidad, 1), 1)
+      }))
+      .filter((item) => item.vianda_id > 0);
+
+    if (!items.length) throw createHttpError('El pedido debe tener al menos un item');
+
+    const viandaIds = [...new Set(items.map((item) => item.vianda_id))];
+    const viandas = await fetchViandasByIds(viandaIds);
+    const viandasById = new Map(viandas.map((v) => [v.id, v]));
+
+    if (viandasById.size !== viandaIds.length) {
+      throw createHttpError('Una o más viandas no existen');
+    }
+
+    const { error: delErr } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
+    if (delErr) throw mapDbError(delErr, 'No se pudieron eliminar los items anteriores');
+
+    const rows = items.map((item) => {
+      const vianda = viandasById.get(item.vianda_id);
+      return {
+        pedido_id: id,
+        vianda_id: item.vianda_id,
+        cantidad: item.cantidad,
+        precio_unitario: toMoney(vianda.precio_venta),
+        costo_unitario: toMoney(vianda.costo)
+      };
+    });
+
+    const { error: insErr } = await supabase.from('pedido_items').insert(rows);
+    if (insErr) throw mapDbError(insErr, 'No se pudieron guardar los nuevos items');
+
+    const totalVenta = rows.reduce((s, r) => s + toMoney(r.precio_unitario) * Number(r.cantidad || 0), 0);
+    const totalCosto = rows.reduce((s, r) => s + toMoney(r.costo_unitario) * Number(r.cantidad || 0), 0);
+    updates.total_venta = toMoney(totalVenta);
+    updates.total_costo = toMoney(totalCosto);
+    updates.ganancia = toMoney(totalVenta - totalCosto);
+  }
 
   const { data, error } = await supabase.from('pedidos').update(updates).eq('id', id).select('*').single();
   if (error) throw mapDbError(error, 'No se pudo actualizar pedido');
