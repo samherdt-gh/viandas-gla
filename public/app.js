@@ -422,7 +422,8 @@ function pedidoMatchesSearch(p, term) {
 function getPedidosFiltrados() {
   const term = (document.getElementById('pedidos-search')?.value || '').trim().toLowerCase();
   let list = pedidosCache;
-  if (!mostrarEntregados) list = list.filter((p) => p.estado !== 'entregado');
+  if (mostrarEntregados) list = list.filter((p) => p.estado === 'entregado');
+  else list = list.filter((p) => p.estado !== 'entregado');
   if (term) list = list.filter((p) => pedidoMatchesSearch(p, term));
   return list;
 }
