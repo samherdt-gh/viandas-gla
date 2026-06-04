@@ -1000,17 +1000,21 @@ async function cargarProduccion() {
   const cards = document.getElementById('produccion-card-list');
   const resumen = document.getElementById('produccion-resumen');
 
+  const itemsOrdenados = [...(plan.items || [])].sort(
+    (a, b) => (Number(b.a_producir) || 0) - (Number(a.a_producir) || 0) || a.nombre.localeCompare(b.nombre)
+  );
+
   resumen.innerHTML = plan.total > 0
     ? `<div class="alert alert-warning">⚠️ Total a producir: <strong>${plan.total}</strong> unidades</div>`
     : '<div class="alert alert-success">✅ Todo cubierto con stock actual.</div>';
 
-  if (!plan.items.length) {
+  if (!itemsOrdenados.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay viandas registradas.</td></tr>';
     cards.innerHTML = '<div class="empty-state">No hay viandas registradas.</div>';
     return;
   }
 
-  tbody.innerHTML = plan.items.map((item) => `
+  tbody.innerHTML = itemsOrdenados.map((item) => `
     <tr style="${item.a_producir > 0 ? 'background:#fff7ed;' : ''}">
       <td><strong>${escapeHtml(item.nombre)}</strong></td>
       <td>${item.stock}</td>
@@ -1026,7 +1030,7 @@ async function cargarProduccion() {
     </tr>
   `).join('');
 
-  cards.innerHTML = plan.items.map((item) => `
+  cards.innerHTML = itemsOrdenados.map((item) => `
     <div class="card-list-item" style="${item.a_producir > 0 ? 'background:#fff7ed;' : ''}">
       <div class="row">
         <span><strong>${escapeHtml(item.nombre)}</strong></span>
