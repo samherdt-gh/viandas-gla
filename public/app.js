@@ -138,8 +138,11 @@ function urgencyBadge(fechaEntrega) {
 }
 
 async function cargarDashboard() {
-  showLoading('stats-grid', 'entregas-pendientes');
-  const s = await api('/stats');
+  showLoading('stats-grid', 'entregas-pendientes', 'top-viandas');
+  const [s, top] = await Promise.all([
+    api('/stats'),
+    api('/stats/top-viandas').catch(() => [])
+  ]);
   const statsGrid = document.getElementById('stats-grid');
   statsGrid.innerHTML = `
     <div class="stat-card"><div class="label">Pedidos realizados (semana)</div><div class="value">${s.pedidosRealizados}</div></div>
@@ -182,6 +185,24 @@ async function cargarDashboard() {
     }).join('');
   }
 
+  const topEl = document.getElementById('top-viandas');
+  if (!top?.length) {
+    topEl.innerHTML = '<div class="empty-state">Sin pedidos todavía.</div>';
+  } else {
+    const max = Math.max(...top.map((v) => Number(v.cantidad) || 0)) || 1;
+    topEl.innerHTML = top.map((v, i) => {
+      const pct = Math.round((Number(v.cantidad) / max) * 100);
+      return `
+        <div class="card-list-item top-vianda-item">
+          <div class="row">
+            <span><span class="top-rank">${i + 1}</span> ${escapeHtml(v.nombre)}</span>
+            <span class="value" style="font-weight:700;">${v.cantidad} u.</span>
+          </div>
+          <div class="top-bar"><div class="top-bar-fill" style="width:${pct}%;"></div></div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 function openViandaModal(vianda = null) {

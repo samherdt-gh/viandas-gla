@@ -760,6 +760,30 @@ api.get('/stats', asyncHandler(async (req, res) => {
   });
 }));
 
+api.get('/stats/top-viandas', asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from('pedido_items')
+    .select('vianda_id,cantidad,viandas(nombre),pedidos(estado)');
+  if (error) throw mapDbError(error, 'No se pudieron consultar items');
+
+  const agregados = {};
+  for (const it of data || []) {
+    if (!it.viandas) continue;
+    if (it.pedidos?.estado === 'cancelado') continue;
+    const id = it.vianda_id;
+    if (!agregados[id]) {
+      agregados[id] = { id, nombre: it.viandas.nombre, cantidad: 0 };
+    }
+    agregados[id].cantidad += Number(it.cantidad || 0);
+  }
+
+  const top = Object.values(agregados)
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, 5);
+
+  res.json(top);
+}));
+
 app.use('/api', api);
 
 const publicDir = path.join(__dirname, '..', 'public');
