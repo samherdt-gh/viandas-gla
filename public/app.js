@@ -8,6 +8,8 @@ let editPedidoItems = [];
 let viandasCache = [];
 let produccionCache = [];
 let stockPlanItems = [];
+let pedidosCache = [];
+let mostrarEntregados = false;
 let toastTimer = null;
 
 function escapeHtml(value) {
@@ -124,6 +126,15 @@ async function getViandas(force = false) {
 
 function renderEstadoBadge(estado) {
   return `<span class="badge badge-${estado}">${escapeHtml(estado.replace('_', ' '))}</span>`;
+}
+
+function urgencyBadge(fechaEntrega) {
+  if (!fechaEntrega) return '<span class="badge badge-cancelado" style="font-size:12px;padding:3px 8px;">Sin fecha</span>';
+  const diff = Math.ceil((new Date(fechaEntrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return '<span class="badge badge-cancelado">Vencido</span>';
+  if (diff === 0) return '<span class="badge badge-pendiente">Hoy</span>';
+  if (diff <= 2) return '<span class="badge badge-en_proceso">Próximo</span>';
+  return '<span class="badge badge-entregado">Programado</span>';
 }
 
 async function cargarDashboard() {
@@ -393,17 +404,59 @@ async function eliminarVianda(id) {
 
 async function cargarPedidos() {
   showLoading('pedidos-table-body', 'pedidos-card-list');
-  const pedidos = await api('/pedidos');
+  pedidosCache = (await api('/pedidos')) || [];
+  renderPedidosList();
+}
+
+function pedidoMatchesSearch(p, term) {
+  if (!term) return true;
+  return (
+    String(p.id).includes(term) ||
+    (p.cliente || '').toLowerCase().includes(term) ||
+    (p.telefono || '').toLowerCase().includes(term) ||
+    (p.direccion || '').toLowerCase().includes(term) ||
+    (p.notas || '').toLowerCase().includes(term)
+  );
+}
+
+function getPedidosFiltrados() {
+  const term = (document.getElementById('pedidos-search')?.value || '').trim().toLowerCase();
+  let list = pedidosCache;
+  if (!mostrarEntregados) list = list.filter((p) => p.estado !== 'entregado');
+  if (term) list = list.filter((p) => pedidoMatchesSearch(p, term));
+  return list;
+}
+
+function renderPedidosList() {
   const tbody = document.getElementById('pedidos-table-body');
   const cards = document.getElementById('pedidos-card-list');
+  const toggleBtn = document.getElementById('pedidos-toggle-entregados');
 
-  if (!pedidos.length) {
+  const totalEntregados = pedidosCache.filter((p) => p.estado === 'entregado').length;
+  if (toggleBtn) {
+    toggleBtn.textContent = mostrarEntregados
+      ? `Ocultar entregados (${totalEntregados})`
+      : `Mostrar entregados (${totalEntregados})`;
+  }
+
+  if (!pedidosCache.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No hay pedidos todavía.</td></tr>';
     cards.innerHTML = '<div class="empty-state">No hay pedidos todavía.</div>';
     return;
   }
 
-  tbody.innerHTML = pedidos.map((p) => `
+  const list = getPedidosFiltrados();
+  if (!list.length) {
+    const term = (document.getElementById('pedidos-search')?.value || '').trim();
+    const msg = term
+      ? 'Ningún pedido coincide con la búsqueda.'
+      : 'No hay pedidos activos. Tocá "Mostrar entregados" para ver los finalizados.';
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${msg}</td></tr>`;
+    cards.innerHTML = `<div class="empty-state">${msg}</div>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((p) => `
     <tr>
       <td>#${p.id}</td>
       <td>${escapeHtml(p.cliente)}</td>
@@ -428,16 +481,7 @@ async function cargarPedidos() {
     </tr>
   `).join('');
 
-  function urgencyBadge(fechaEntrega) {
-    if (!fechaEntrega) return '<span class="badge badge-cancelado" style="font-size:12px;padding:3px 8px;">Sin fecha</span>';
-    const diff = Math.ceil((new Date(fechaEntrega).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return '<span class="badge badge-cancelado">Vencido</span>';
-    if (diff === 0) return '<span class="badge badge-pendiente">Hoy</span>';
-    if (diff <= 2) return '<span class="badge badge-en_proceso">Próximo</span>';
-    return '<span class="badge badge-entregado">Programado</span>';
-  }
-
-  cards.innerHTML = pedidos.map((p) => `
+  cards.innerHTML = list.map((p) => `
     <div class="card-list-item">
       <div class="row">
         <span><strong>#${p.id}</strong> · ${escapeHtml(p.cliente)}</span>
@@ -461,6 +505,15 @@ async function cargarPedidos() {
       </select>
     </div>
   `).join('');
+}
+
+function filtrarPedidos() {
+  renderPedidosList();
+}
+
+function toggleEntregados() {
+  mostrarEntregados = !mostrarEntregados;
+  renderPedidosList();
 }
 
 async function showPedidoDetail(p) {

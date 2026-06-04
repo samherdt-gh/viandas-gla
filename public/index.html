@@ -82,7 +82,15 @@
     <section class="page" id="page-pedidos">
       <div class="toolbar">
         <h2>Pedidos</h2>
-        <button class="btn btn-primary" onclick="openPedidoModal()">+ Nuevo</button>
+        <div class="toolbar-actions">
+          <button class="btn btn-outline btn-sm" id="pedidos-toggle-entregados" onclick="toggleEntregados()">Mostrar entregados</button>
+          <button class="btn btn-primary" onclick="openPedidoModal()">+ Nuevo</button>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input id="pedidos-search" type="search" placeholder="Buscar por cliente, ID, teléfono, dirección o notas..." oninput="filtrarPedidos()">
       </div>
 
       <div class="data-table card">
