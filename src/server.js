@@ -732,7 +732,7 @@ api.get('/stats', asyncHandler(async (req, res) => {
   const weekStart = getStartOfWeek();
 
   const pedidosSemana = pedidos.filter((p) => p.created_at >= weekStart);
-  const pendientesSemana = pedidosSemana.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length;
+  const pendientesSemana = pedidos.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length;
   const entregadosSemana = pedidos.filter((p) => p.estado === 'entregado' && p.entregado_at >= weekStart);
 
   const clientesSet = new Set();
@@ -789,7 +789,7 @@ app.use('/api', api);
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir, {
   setHeaders(res, path) {
-    if (path.endsWith('.html')) {
+    if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css')) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }
