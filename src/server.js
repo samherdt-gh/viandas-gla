@@ -83,6 +83,9 @@ function cleanText(value, maxLen = 250) {
 
 function parseNullableDate(value) {
   if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    value = value + 'T12:00:00';
+  }
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) {
     throw createHttpError('Fecha de entrega inválida', 400);
