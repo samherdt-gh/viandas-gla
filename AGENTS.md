@@ -341,6 +341,11 @@ const asyncHandler = (fn) => (req, res, next) =>
 - Monitor ID: `803252369`
 - Se eliminó `.github/workflows/keep-alive.yml` (no funcional).
 
+### Filtro periodo en dashboard KPI (semana / mes / total)
+- **Backend** (`src/server.js:723-761`): `/api/stats` acepta `?periodo=semana|mes|total`. Calcula pedidosRealizados, ingresos, ganancia, clientes según el periodo. `pendientes` siempre muestra todos los activos.
+- **Frontend** (`public/app.js:v3`): 3 botones "Semana / Mes / Total" sobre las KPI cards. Al clickear, re-fetch con el periodo y actualiza labels.
+- **CSS**: `.periodo-filter` con flexbox centrado, botones `btn-sm` con estilo `btn-primary`/`btn-outline`.
+
 ## Comandos útiles
 ```bash
 # Desarrollo
