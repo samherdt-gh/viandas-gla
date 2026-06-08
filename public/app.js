@@ -165,15 +165,14 @@ async function cargarDashboard() {
     api('/stats/top-viandas').catch(() => [])
   ]);
   renderPeriodoFilter();
-  const labelPeriodo = PERIODO_LABEL[periodoSeleccionado].toLowerCase();
   const statsGrid = document.getElementById('stats-grid');
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="label">Pedidos realizados (${labelPeriodo})</div><div class="value">${s.pedidosRealizados}</div></div>
+    <div class="stat-card"><div class="label">Pedidos realizados</div><div class="value">${s.pedidosRealizados}</div></div>
     <div class="stat-card"><div class="label">Pendientes de entrega</div><div class="value">${s.pendientes}</div></div>
-    <div class="stat-card"><div class="label">Ingresos (${labelPeriodo})</div><div class="value">${formatMoney(s.ingresos)}</div></div>
-    <div class="stat-card"><div class="label">Ganancia (${labelPeriodo})</div><div class="value">${formatMoney(s.ganancia)}</div></div>
-    <div class="stat-card"><div class="label">Clientes (${labelPeriodo})</div><div class="value">${s.clientes}</div></div>
-    <div class="stat-card"><div class="label">Pedidos (${labelPeriodo})</div><div class="value">${s.totalPedidos}</div></div>
+    <div class="stat-card"><div class="label">Ingresos</div><div class="value">${formatMoney(s.ingresos)}</div></div>
+    <div class="stat-card"><div class="label">Ganancia</div><div class="value">${formatMoney(s.ganancia)}</div></div>
+    <div class="stat-card"><div class="label">Clientes</div><div class="value">${s.clientes}</div></div>
+    <div class="stat-card"><div class="label">Pedidos</div><div class="value">${s.totalPedidos}</div></div>
   `;
 
   const pendientes = document.getElementById('entregas-pendientes');
