@@ -743,7 +743,8 @@ api.get('/stats', asyncHandler(async (req, res) => {
     periodStart = getStartOfWeek();
   } else if (periodo === 'mes') {
     const d = new Date();
-    d.setDate(d.getDate() - 30);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
     periodStart = d.toISOString();
   } else {
     periodStart = null;
