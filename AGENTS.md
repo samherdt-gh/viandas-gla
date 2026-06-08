@@ -319,6 +319,28 @@ const asyncHandler = (fn) => (req, res, next) =>
 - Esto evita que Render duerma el servidor tras 15 min de inactividad.
 - Se actualizó el token de GitHub para permitir `workflow` scope.
 
+## 08/06/2026 — Fix dashboard pendientes + timezone fechas + UptimeRobot
+
+### Fix dashboard: pedidos pendientes no se reinician por semana
+- **Problema**: el dashboard filtraba pedidos por `created_at >= weekStart`, así que los pedidos pendientes hechos en días anteriores desaparecían al cambiar de semana.
+- **Solución** (`src/server.js:735`): `pendientesSemana` ahora cuenta TODOS los pedidos activos (`ESTADOS_ACTIVOS`), sin filtro semanal. Solo `ingresosSemanales` y `gananciaSemanal` filtran por `entregado_at >= weekStart`.
+
+### Cache busting forzado en JS/CSS
+- **Problema**: los cambios en `app.js` no se veían porque el navegador cacheaba el archivo. El servidor solo ponía `Cache-Control: no-cache` en HTML.
+- **Solución** (`src/server.js:792`): se agregó `.js` y `.css` a la condición de `Cache-Control: no-cache`.
+- Se subió `?v=2` → `?v=3` en `public/index.html` para forzar recarga.
+
+### Fix timezone en fechas de entrega
+- **Problema**: al guardar una fecha desde `<input type="date">`, se enviaba `"2026-06-10"` (date-only). `new Date("2026-06-10")` lo interpretaba como medianoche UTC, y al leerlo desde Argentina (UTC-3) se veía un día antes.
+- **Solución** (`src/server.js:85-88`): en `parseNullableDate`, si el valor es `YYYY-MM-DD` se le agrega `T12:00:00` (mediodía) para que ningún huso horario corra la fecha.
+- Afecta tanto a pedidos nuevos como a edición.
+
+### Keep-alive con UptimeRobot
+- **Problema**: el GitHub Actions keep-alive no funcionaba. Render duerme el servidor tras 15 min, causando ~30s de cold start.
+- **Solución**: se creó un monitor HTTP en UptimeRobot (misma cuenta que LUSTIX) que pingea `https://viandas-gla.onrender.com/api/health` cada **5 minutos**.
+- Monitor ID: `803252369`
+- Se eliminó `.github/workflows/keep-alive.yml` (no funcional).
+
 ## Comandos útiles
 ```bash
 # Desarrollo
