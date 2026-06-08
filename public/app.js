@@ -10,6 +10,7 @@ let produccionCache = [];
 let stockPlanItems = [];
 let pedidosCache = [];
 let mostrarEntregados = false;
+let periodoSeleccionado = 'semana';
 let toastTimer = null;
 
 function escapeHtml(value) {
@@ -137,20 +138,42 @@ function urgencyBadge(fechaEntrega) {
   return '<span class="badge badge-entregado">Programado</span>';
 }
 
+const PERIODOS = ['semana', 'mes', 'total'];
+const PERIODO_LABEL = { semana: 'Semana', mes: 'Mes', total: 'Total' };
+
+function renderPeriodoFilter() {
+  const container = document.getElementById('periodo-filter');
+  if (!container) return;
+  container.innerHTML = PERIODOS.map((p) => `
+    <button class="btn ${p === periodoSeleccionado ? 'btn-primary' : 'btn-outline'} btn-sm periodo-btn"
+            data-periodo="${p}" onclick="cambiarPeriodo('${p}')">
+      ${PERIODO_LABEL[p]}
+    </button>
+  `).join('');
+}
+
+async function cambiarPeriodo(periodo) {
+  periodoSeleccionado = periodo;
+  renderPeriodoFilter();
+  await cargarDashboard();
+}
+
 async function cargarDashboard() {
   showLoading('stats-grid', 'entregas-pendientes', 'top-viandas');
   const [s, top] = await Promise.all([
-    api('/stats'),
+    api(`/stats?periodo=${periodoSeleccionado}`),
     api('/stats/top-viandas').catch(() => [])
   ]);
+  renderPeriodoFilter();
+  const labelPeriodo = PERIODO_LABEL[periodoSeleccionado].toLowerCase();
   const statsGrid = document.getElementById('stats-grid');
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="label">Pedidos realizados (semana)</div><div class="value">${s.pedidosRealizados}</div></div>
-    <div class="stat-card"><div class="label">Pendientes de entrega</div><div class="value">${s.pendientesSemana}</div></div>
-    <div class="stat-card"><div class="label">Ingresos (semana)</div><div class="value">${formatMoney(s.ingresosSemanales)}</div></div>
-    <div class="stat-card"><div class="label">Ganancia (semana)</div><div class="value">${formatMoney(s.gananciaSemanal)}</div></div>
-    <div class="stat-card"><div class="label">Clientes</div><div class="value">${s.clientes}</div></div>
-    <div class="stat-card"><div class="label">Pedidos históricos</div><div class="value">${s.pedidosHistoricos}</div></div>
+    <div class="stat-card"><div class="label">Pedidos realizados (${labelPeriodo})</div><div class="value">${s.pedidosRealizados}</div></div>
+    <div class="stat-card"><div class="label">Pendientes de entrega</div><div class="value">${s.pendientes}</div></div>
+    <div class="stat-card"><div class="label">Ingresos (${labelPeriodo})</div><div class="value">${formatMoney(s.ingresos)}</div></div>
+    <div class="stat-card"><div class="label">Ganancia (${labelPeriodo})</div><div class="value">${formatMoney(s.ganancia)}</div></div>
+    <div class="stat-card"><div class="label">Clientes (${labelPeriodo})</div><div class="value">${s.clientes}</div></div>
+    <div class="stat-card"><div class="label">Pedidos (${labelPeriodo})</div><div class="value">${s.totalPedidos}</div></div>
   `;
 
   const pendientes = document.getElementById('entregas-pendientes');

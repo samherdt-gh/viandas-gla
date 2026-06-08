@@ -724,6 +724,11 @@ api.post('/produccion', asyncHandler(async (req, res) => {
 }));
 
 api.get('/stats', asyncHandler(async (req, res) => {
+  const periodo = req.query.periodo || 'semana';
+  if (!['semana', 'mes', 'total'].includes(periodo)) {
+    throw createHttpError('Periodo inválido. Use: semana, mes o total');
+  }
+
   const [pedidosRes, produccion] = await Promise.all([
     supabase.from('pedidos').select('id,cliente,estado,total_venta,total_costo,ganancia,created_at,fecha_entrega,entregado_at'),
     buildProduccionPlan()
@@ -732,14 +737,30 @@ api.get('/stats', asyncHandler(async (req, res) => {
   if (pedidosRes.error) throw mapDbError(pedidosRes.error, 'No se pudieron cargar pedidos');
 
   const pedidos = pedidosRes.data || [];
-  const weekStart = getStartOfWeek();
 
-  const pedidosSemana = pedidos.filter((p) => p.created_at >= weekStart);
-  const pendientesSemana = pedidos.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length;
-  const entregadosSemana = pedidos.filter((p) => p.estado === 'entregado' && p.entregado_at >= weekStart);
+  let periodStart;
+  if (periodo === 'semana') {
+    periodStart = getStartOfWeek();
+  } else if (periodo === 'mes') {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    periodStart = d.toISOString();
+  } else {
+    periodStart = null;
+  }
+
+  const pedidosPeriodo = periodStart
+    ? pedidos.filter((p) => p.created_at >= periodStart)
+    : pedidos;
+
+  const pendientes = pedidos.filter((p) => ESTADOS_ACTIVOS.includes(p.estado)).length;
+
+  const entregadosPeriodo = periodStart
+    ? pedidos.filter((p) => p.estado === 'entregado' && p.entregado_at >= periodStart)
+    : pedidos.filter((p) => p.estado === 'entregado');
 
   const clientesSet = new Set();
-  for (const p of pedidos) {
+  for (const p of (periodo === 'total' ? pedidos : pedidosPeriodo)) {
     if (p.cliente) clientesSet.add(p.cliente.trim().toLowerCase());
   }
 
@@ -753,12 +774,13 @@ api.get('/stats', asyncHandler(async (req, res) => {
     .slice(0, 6);
 
   res.json({
-    pedidosRealizados: pedidosSemana.length,
-    pendientesSemana,
-    ingresosSemanales: toMoney(sumBy(entregadosSemana, (p) => Number(p.total_venta || 0))),
-    gananciaSemanal: toMoney(sumBy(entregadosSemana, (p) => Number(p.ganancia || 0))),
+    periodo,
+    pedidosRealizados: pedidosPeriodo.length,
+    pendientes,
+    ingresos: toMoney(sumBy(entregadosPeriodo, (p) => Number(p.total_venta || 0))),
+    ganancia: toMoney(sumBy(entregadosPeriodo, (p) => Number(p.ganancia || 0))),
     clientes: clientesSet.size,
-    pedidosHistoricos: pedidos.length,
+    totalPedidos: pedidosPeriodo.length,
     entregasPendientes
   });
 }));
