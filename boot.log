@@ -1,0 +1,14 @@
+✅ Columnas telefono y direccion OK
+✅ Columna imagen OK
+✅ Columna categoria OK
+Sabores de la GLA corriendo en http://localhost:3000
+POST /api/auth/login 404 48 - 111.340 ms
+GET /api/articulos/sugerir-codigo?tipo=materia_prima&marca=DOW&concentracion=70%25 404 61 - 1.772 ms
+GET /api/articulos/sugerir-codigo?tipo=producto_terminado 404 61 - 1.081 ms
+GET /api/articulos/sugerir-codigo?tipo=producto_intermedio&marca=ACME&concentracion=puro 404 61 - 1.134 ms
+POST /api/articulos 404 47 - 4.053 ms
+POST /api/articulos 404 47 - 2.676 ms
+POST /api/articulos 404 47 - 1.644 ms
+POST /api/auth/login 404 48 - 7.482 ms
+POST /api/auth/login 404 48 - 36.821 ms
+GET /health 200 11293 - 176.523 ms
