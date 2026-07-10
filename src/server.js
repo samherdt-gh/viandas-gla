@@ -14,8 +14,8 @@ const PORT = Number(process.env.PORT) || 3000;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://viandas-gla.onrender.com';
 
-const ESTADOS_PEDIDO = ['pendiente', 'en_proceso', 'listo', 'entregado', 'cancelado'];
-const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
+const ESTADOS_PEDIDO = ['pendiente', 'en_proceso', 'listo', 'parcial', 'entregado', 'cancelado'];
+const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo', 'parcial'];
 
 function asyncHandler(fn) {
   return (req, res, next) => {
@@ -125,13 +125,14 @@ async function fetchViandasByIds(ids) {
 async function fetchPedidoItems(pedidoId) {
   const { data, error } = await supabase
     .from('pedido_items')
-    .select('id,pedido_id,vianda_id,cantidad,precio_unitario,costo_unitario,viandas(nombre)')
+    .select('id,pedido_id,vianda_id,cantidad,cantidad_entregada,precio_unitario,costo_unitario,viandas(nombre)')
     .eq('pedido_id', pedidoId)
     .order('id', { ascending: true });
 
   if (error) throw mapDbError(error, 'No se pudieron consultar los items del pedido');
   return (data || []).map((item) => ({
     ...item,
+    cantidad_entregada: Number(item.cantidad_entregada || 0),
     vianda_nombre: item.viandas?.nombre || 'Vianda eliminada'
   }));
 }
@@ -221,13 +222,16 @@ async function buildProduccionPlan() {
   if (pedidoIds.length > 0) {
     const { data: items, error: itemsError } = await supabase
       .from('pedido_items')
-      .select('vianda_id,cantidad')
+      .select('vianda_id,cantidad,cantidad_entregada')
       .in('pedido_id', pedidoIds);
 
     if (itemsError) throw mapDbError(itemsError, 'No se pudieron consultar items de pedidos activos');
 
     for (const item of items || []) {
-      demandaPorVianda[item.vianda_id] = (demandaPorVianda[item.vianda_id] || 0) + Number(item.cantidad || 0);
+      const pendiente = Number(item.cantidad || 0) - Number(item.cantidad_entregada || 0);
+      if (pendiente > 0) {
+        demandaPorVianda[item.vianda_id] = (demandaPorVianda[item.vianda_id] || 0) + pendiente;
+      }
     }
   }
 
@@ -527,8 +531,8 @@ api.put('/pedidos/:id', asyncHandler(async (req, res) => {
 
   const wantsItems = Array.isArray(req.body?.items);
 
-  if (wantsItems && existing.estado === 'entregado') {
-    throw createHttpError('No se pueden modificar los items de un pedido ya entregado. Revertí el estado antes de editarlo.', 400);
+  if (wantsItems && (existing.estado === 'entregado' || existing.estado === 'parcial')) {
+    throw createHttpError('No se pueden modificar los items de un pedido con entregas parciales o ya entregado. Revertí las entregas antes de editarlo.', 400);
   }
 
   if (wantsItems) {
@@ -634,6 +638,88 @@ api.put('/pedidos/:id/estado', asyncHandler(async (req, res) => {
 
   if (updateErr) throw mapDbError(updateErr, 'No se pudo actualizar estado');
   res.json(updated);
+}));
+
+async function updatePedidoEstadoFromItems(pedidoId) {
+  const items = await fetchPedidoItems(pedidoId);
+  const todosCompletos = items.every((item) => item.cantidad_entregada >= item.cantidad);
+  const algunEntregado = items.some((item) => item.cantidad_entregada > 0);
+  let nuevoEstado;
+  if (todosCompletos) nuevoEstado = 'entregado';
+  else if (algunEntregado) nuevoEstado = 'parcial';
+  else nuevoEstado = 'pendiente';
+
+  const { data, error } = await supabase
+    .from('pedidos')
+    .update({
+      estado: nuevoEstado,
+      entregado_at: nuevoEstado === 'entregado' ? new Date().toISOString() : nuevoEstado === 'parcial' ? null : undefined
+    })
+    .eq('id', pedidoId)
+    .select('*')
+    .single();
+
+  if (error) throw mapDbError(error, 'No se pudo actualizar estado del pedido');
+  return data;
+}
+
+api.post('/pedidos/:id/entregar-items', asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id, 'pedido_id');
+  const { data: pedido, error: fetchErr } = await supabase.from('pedidos').select('*').eq('id', id).maybeSingle();
+  if (fetchErr) throw mapDbError(fetchErr, 'No se pudo consultar pedido');
+  if (!pedido) throw createHttpError('Pedido no encontrado', 404);
+  if (pedido.estado === 'entregado') throw createHttpError('El pedido ya está entregado en su totalidad');
+
+  const rawItems = Array.isArray(req.body?.items) ? req.body.items : [];
+  if (!rawItems.length) throw createHttpError('Debe incluir al menos un item para entregar');
+
+  const existingItems = await fetchPedidoItems(id);
+  const itemsById = new Map(existingItems.map((it) => [it.id, it]));
+
+  const movements = [];
+  for (const { id: itemId, cantidad } of rawItems) {
+    const existing = itemsById.get(Number(itemId));
+    if (!existing) throw createHttpError(`Item #${itemId} no encontrado en este pedido`);
+    const nuevaEntregada = Number(existing.cantidad_entregada || 0) + Math.max(Number(cantidad || 0), 0);
+    if (nuevaEntregada > Number(existing.cantidad)) {
+      throw createHttpError(`No podés entregar más de ${existing.cantidad} unidades de "${existing.vianda_nombre}" (ya entregadas: ${existing.cantidad_entregada})`);
+    }
+    if (nuevaEntregada === Number(existing.cantidad_entregada)) continue;
+
+    const { error: updateErr } = await supabase
+      .from('pedido_items')
+      .update({ cantidad_entregada: nuevaEntregada })
+      .eq('id', itemId);
+    if (updateErr) throw mapDbError(updateErr, 'No se pudo actualizar item');
+
+    movements.push({
+      vianda_id: existing.vianda_id,
+      cantidad: Math.max(Number(cantidad || 0), 0) - Number(existing.cantidad_entregada || 0)
+    });
+  }
+
+  if (!movements.length) throw createHttpError('No hay cambios para registrar');
+
+  for (const mov of movements) {
+    if (mov.cantidad <= 0) continue;
+    const viandaId = mov.vianda_id;
+    const { data: vianda } = await supabase.from('viandas').select('stock').eq('id', viandaId).maybeSingle();
+    if (!vianda) continue;
+    const nuevoStock = Math.max(Number(vianda.stock || 0) - mov.cantidad, 0);
+    await supabase.from('viandas').update({ stock: nuevoStock }).eq('id', viandaId);
+    await supabase.from('movimientos_stock').insert({
+      vianda_id: viandaId,
+      tipo: 'salida',
+      cantidad: mov.cantidad,
+      motivo: `Entrega parcial de pedido #${id}`,
+      referencia: `pedido:${id}`
+    });
+  }
+
+  const pedidoActualizado = await updatePedidoEstadoFromItems(id);
+  const itemsFinales = await fetchPedidoItems(id);
+
+  res.json({ ...pedidoActualizado, items: itemsFinales });
 }));
 
 api.delete('/pedidos/:id', asyncHandler(async (req, res) => {
@@ -866,6 +952,18 @@ const server = app.listen(PORT, async () => {
     } else if (!error) {
       await supabase.from('viandas').delete().eq('nombre', '__migrate__');
       console.log('✅ Columna imagen OK');
+    }
+  } catch { /* ignore */ }
+
+  // Auto-migrate: columna cantidad_entregada en pedido_items
+  try {
+    const { error } = await supabase.from('pedido_items').insert({ pedido_id: 0, vianda_id: 0, cantidad: 1, cantidad_entregada: 0 }).select('*').maybeSingle();
+    if (error?.code === '42703') {
+      console.log('⚠️  Migracion necesaria: ejecutar en Supabase SQL Editor:');
+      console.log('  ALTER TABLE public.pedido_items ADD COLUMN IF NOT EXISTS cantidad_entregada INTEGER DEFAULT 0;');
+    } else if (!error) {
+      await supabase.from('pedido_items').delete().eq('pedido_id', 0);
+      console.log('✅ Columna cantidad_entregada OK');
     }
   } catch { /* ignore */ }
 

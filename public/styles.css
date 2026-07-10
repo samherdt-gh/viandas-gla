@@ -332,6 +332,11 @@ h2 {
   color: #166534;
 }
 
+.badge-parcial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .badge-entregado {
   background: #e0e7ff;
   color: #3730a3;

@@ -1,6 +1,6 @@
 const API = '/api';
-const ESTADOS = ['pendiente', 'en_proceso', 'listo', 'entregado', 'cancelado'];
-const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo'];
+const ESTADOS = ['pendiente', 'en_proceso', 'listo', 'parcial', 'entregado', 'cancelado'];
+const ESTADOS_ACTIVOS = ['pendiente', 'en_proceso', 'listo', 'parcial'];
 
 let pedidoItems = [];
 let pedidoEnEdicion = null;
@@ -125,8 +125,14 @@ async function getViandas(force = false) {
   return viandasCache;
 }
 
-function renderEstadoBadge(estado) {
-  return `<span class="badge badge-${estado}">${escapeHtml(estado.replace('_', ' '))}</span>`;
+function renderEstadoBadge(estado, items = null) {
+  let text = estado.replace('_', ' ');
+  if (estado === 'parcial' && items) {
+    const total = items.reduce((s, i) => s + Number(i.cantidad || 0), 0);
+    const entregado = items.reduce((s, i) => s + Number(i.cantidad_entregada || 0), 0);
+    text = `${text} (${entregado}/${total})`;
+  }
+  return `<span class="badge badge-${estado}">${escapeHtml(text)}</span>`;
 }
 
 function urgencyBadge(fechaEntrega) {
@@ -571,13 +577,18 @@ async function showPedidoDetail(p) {
     cantidad: Number(item.cantidad)
   }));
 
-  const itemsHtml = (p.items || []).map((item) => `
+  const itemsHtml = (p.items || []).map((item) => {
+    const entregado = Number(item.cantidad_entregada || 0);
+    const pendiente = Number(item.cantidad || 0) - entregado;
+    const progress = entregado > 0 ? `<span class="detail-item-progress" style="color:var(--success);font-size:12px;"> (${entregado}/${item.cantidad} entregado)</span>` : '';
+    return `
     <div class="detail-item">
-      <span class="detail-item-name">${escapeHtml(item.vianda_nombre)}</span>
+      <span class="detail-item-name">${escapeHtml(item.vianda_nombre)}${progress}</span>
       <span class="detail-item-qty">×${item.cantidad}</span>
       <span class="detail-item-total">${formatMoney(item.precio_unitario * item.cantidad)}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   let urgencyBadge = '';
   if (p.fecha_entrega) {
@@ -596,7 +607,7 @@ async function showPedidoDetail(p) {
       <div class="detail-section-title">Información</div>
       <div class="detail-row">
         <span class="detail-label">Estado</span>
-        <span class="detail-value">${renderEstadoBadge(p.estado)}</span>
+        <span class="detail-value">${renderEstadoBadge(p.estado, p.items)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Cliente</span>
@@ -623,6 +634,34 @@ async function showPedidoDetail(p) {
       <div class="detail-section-title">Items (${(p.items || []).length})</div>
       <div class="detail-items">${itemsHtml || '<div class="empty-state">Sin items</div>'}</div>
     </div>
+    <div class="detail-section">
+    </div>
+    ${p.estado !== 'entregado' ? `
+    <div class="detail-section" id="entrega-parcial-section">
+      <div class="detail-section-title">Entregar items</div>
+      <div id="entrega-parcial-items">
+        ${(p.items || []).map((item) => {
+          const pendiente = Number(item.cantidad || 0) - Number(item.cantidad_entregada || 0);
+          if (pendiente <= 0) return '';
+          return `
+          <div class="pedido-item" style="margin-bottom:8px;">
+            <div class="pedido-item-row">
+              <span style="flex:1;font-size:14px;"><strong>${escapeHtml(item.vianda_nombre)}</strong> <span style="color:var(--text-secondary)">(pendiente: ${pendiente})</span></span>
+              <input type="number" min="0" max="${pendiente}" value="${pendiente}"
+                     id="ep-cant-${item.id}" class="ep-input" style="width:70px;text-align:center;"
+                     onchange="epUpdateTotal()">
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="detail-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        <span class="detail-label">Total a entregar</span>
+        <span class="detail-value" id="ep-total" style="font-weight:700;">$0</span>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="entregarItems(${p.id})">
+        ✅ Entregar seleccionados
+      </button>
+    </div>` : ''}
     <div class="detail-section">
       <div class="detail-section-title">Totales</div>
       <div class="detail-row">
@@ -688,6 +727,51 @@ function editarPedido() {
 
 function cancelarEdicionPedido() {
   document.getElementById('pedido-edit-section').style.display = 'none';
+}
+
+function epUpdateTotal() {
+  let total = 0;
+  document.querySelectorAll('.ep-input').forEach((input) => {
+    const cant = Number(input.value) || 0;
+    const viandaId = input.closest('.pedido-item')?.querySelector('span strong')?.textContent;
+    const p = document.querySelector(`[id^="ep-cant-"]`);
+    if (p) total += cant;
+  });
+  // More precise: find corresponding vianda price
+  let realTotal = 0;
+  document.querySelectorAll('.ep-input').forEach((input) => {
+    const cant = Number(input.value) || 0;
+    const itemDiv = input.closest('.pedido-item');
+    const name = itemDiv?.querySelector('span strong')?.textContent || '';
+    const v = viandasCache.find((v) => v.nombre === name);
+    if (v) realTotal += cant * Number(v.precio_venta || 0);
+  });
+  document.getElementById('ep-total').textContent = formatMoney(realTotal);
+}
+
+async function entregarItems(pedidoId) {
+  const items = [];
+  document.querySelectorAll('.ep-input').forEach((input) => {
+    const cant = Number(input.value) || 0;
+    if (cant <= 0) return;
+    const match = input.id.match(/ep-cant-(\d+)/);
+    if (!match) return;
+    items.push({ id: Number(match[1]), cantidad: cant });
+  });
+
+  if (!items.length) return showToast('Seleccioná al menos un item para entregar');
+
+  try {
+    const res = await api(`/pedidos/${pedidoId}/entregar-items`, {
+      method: 'POST',
+      body: { items }
+    });
+    showToast(`✅ ${items.reduce((s, i) => s + i.cantidad, 0)} unidades entregadas`, 'success');
+    closeModal('modal-pedido-detail');
+    await Promise.all([cargarPedidos(), cargarDashboard(), cargarProduccion(), cargarMovimientos(), cargarViandas()]);
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 function renderEditItems() {

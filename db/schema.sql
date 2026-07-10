@@ -29,7 +29,7 @@ create table if not exists public.pedidos (
   telefono text,
   direccion text,
   notas text,
-  estado text not null default 'pendiente' check (estado in ('pendiente', 'en_proceso', 'listo', 'entregado', 'cancelado')),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'en_proceso', 'listo', 'parcial', 'entregado', 'cancelado')),
   fecha_entrega timestamptz,
   entregado_at timestamptz,
   total_venta numeric(12, 2) not null default 0 check (total_venta >= 0),
@@ -44,6 +44,7 @@ create table if not exists public.pedido_items (
   pedido_id bigint not null references public.pedidos(id) on delete cascade,
   vianda_id bigint not null references public.viandas(id) on delete restrict,
   cantidad integer not null check (cantidad > 0),
+  cantidad_entregada integer not null default 0 check (cantidad_entregada >= 0),
   precio_unitario numeric(12, 2) not null check (precio_unitario >= 0),
   costo_unitario numeric(12, 2) not null check (costo_unitario >= 0),
   created_at timestamptz not null default now()
